@@ -3,6 +3,7 @@
 	<name>cli_message</name>
 	<comment></comment>
 	<projects>
+		<project>libmessage</project>
 	</projects>
 	<buildSpec>
 		<buildCommand>

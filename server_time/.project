@@ -3,6 +3,7 @@
 	<name>server_time</name>
 	<comment></comment>
 	<projects>
+		<project>libmessage</project>
 	</projects>
 	<buildSpec>
 		<buildCommand>
