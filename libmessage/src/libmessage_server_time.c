@@ -22,6 +22,8 @@
 #include <sys/types.h>
 #include <limits.h>
 
+// libmessage.h
+#include <limits.h> // libmessage.h
 
 #include "libmessage.h"
 

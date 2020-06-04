@@ -11,6 +11,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+// libmessage.h
+#include <limits.h> // libmessage.h
 
 #include "libmessage.h"
 
