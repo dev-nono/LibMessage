@@ -1,0 +1,43 @@
+
+server_time     get_time set_time  signal_time
+daemon_system   shutdown
+daemon_gpio
+daemon_network     
+
+    pid_client      server_name    service_name
+-----------------------------------------------
+    12345           server_time    getdate
+    12345           server_time    setdate
+                    server_time    signal_time
+    
+
+
+
+client                  || lib_client                  lib_svc              ||      server
+----------------------------------------------------------------------------------------------------
+                                                                                    libmessage_init();
+                                                                                    register server_time.getdate
+                                                    open server_time.getdate        <==
+                                                                                    register server_time.setdate
+                                                    open server_time.setdate        <==
+libmessage_init();
+server_time_getdate(&date)  ->       
+                        open server_time.getdate
+                        open pid_client 
+                        server_time.getdate.send(pid_client)   =>
+                                                    read server_time.getdate (&pid_client)
+                                                    open(pid_client)
+                                                                                    ==> getdate(&Date)
+                                                                                    <==
+                                                    pid_client.send(DATE)
+                                                    close pid_client
+                        read pid_client(&DATE)                    
+                        close pid_client
+                        close server_time.getdate
+    
+
+   date <==
+
+
+
+                                                    
