@@ -20,7 +20,7 @@ client                  || lib_client                  lib_svc              ||  
                                                     open server_time.getdate        <==
                                                                                     register server_time.setdate
                                                     open server_time.setdate        <==
-libmessage_init();
+
 server_time_getdate(&date)  ->       
                         open server_time.getdate
                         open pid_client 

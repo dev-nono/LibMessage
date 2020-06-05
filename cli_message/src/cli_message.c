@@ -22,7 +22,7 @@ int main(void)
     int     result = 0;
     double  vDate = 0.0;
 
-    result = server_time_getdate("cli_message",&vDate);
+    result = libmessage_getdate("cli_message",SERVER_TIME_GETDATE,&vDate);
 
     printf("\ncli_message : result = %d date = %f \n",result,vDate);
 

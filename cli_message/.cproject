@@ -63,6 +63,8 @@
                                     								
                                 </option>
                                 								
+                                <option id="gnu.c.compiler.option.warnings.pedantic.197780902" superClass="gnu.c.compiler.option.warnings.pedantic" useByScannerDiscovery="false" value="true" valueType="boolean"/>
+                                								
                                 <inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.333902100" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
                                 							
                             </tool>
@@ -176,6 +178,8 @@
                                     <listOptionValue builtIn="false" value="&quot;${workspace_loc:/libmessage/inc}&quot;"/>
                                     								
                                 </option>
+                                								
+                                <option id="gnu.c.compiler.option.warnings.pedantic.1130124550" superClass="gnu.c.compiler.option.warnings.pedantic" value="true" valueType="boolean"/>
                                 								
                                 <inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.111477287" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
                                 							
