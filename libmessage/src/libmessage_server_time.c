@@ -28,43 +28,46 @@
 #include "libmessage.h"
 
 
-
-int server_time_getdate(const char* a_Caller, double *a_Date)
+//************************************************************
+//*
+//************************************************************
+int libmessage_getdate( const char* a_Callername,
+                        const char* a_Servername,
+                        double *a_Date)
 {
     int             result  = 0;
     struct mq_attr  vAttr   = {0};
-    mqd_t           vFdServer_getdate   = 0;
-    mqd_t           vFdPidClient        = 0;
+    mqd_t           vFdServer_getdate   = -1;
+    mqd_t           vFdPidClient        = -1;
     char            vPidClientName[NAME_MAX+1] = {0};
     ssize_t         vLenReceive                = 0;
     char            vBuffer[sizeof(double)];
     pid_t           vTid = syscall(SYS_gettid);
 
-
-
     vAttr.mq_flags =     O_CLOEXEC;
 
-    snprintf(vPidClientName,NAME_MAX,"/%s.%d",a_Caller,vTid);
-
-    *a_Date = 0.0;
-
-    printf("libmessage_server_time_getdate %s %s\n",
-            SERVER_TIME,
-            SERVER_TIME_GETDATE);
-
-    //********************************
-    // open mq for request get_date
-    //********************************
-
-    vFdServer_getdate =  mq_open(SERVER_TIME_GETDATE, O_CREAT,S_IRWXG,&vAttr);
-
-    if( vFdServer_getdate  == ( (mqd_t)(-1) ))
-    {   //  error
-        result = errno;
-        printf("server_time_getdate: mq_open(%s) error %d  %s",
-                SERVER_TIME_GETDATE,result,strerror(result));
+    if( (0 == a_Callername) || (0 == a_Servername) || (0 == (*a_Date) ) )
+    {
+        result = EINVAL;
     }
 
+    if( 0 == result )
+    {
+        snprintf(vPidClientName,NAME_MAX,"/%s.%d",a_Callername,vTid);
+        *a_Date = 0.0;
+
+        //********************************
+        // open mq for request get_date
+        //********************************
+        vFdServer_getdate =  mq_open(a_Servername, O_CREAT,S_IRWXG,&vAttr);
+
+        if( vFdServer_getdate  == ( (mqd_t)(-1) ))
+        {   //  error
+            result = errno;
+            printf("libmessage_getdate: mq_open(%s) error %d  %s",
+                    a_Servername,result,strerror(result));
+        }
+    }
     //********************************
     // open mq for response
     //********************************
@@ -75,7 +78,7 @@ int server_time_getdate(const char* a_Caller, double *a_Date)
         if( ( (mqd_t)(-1) ) == vFdPidClient)
         {   //  error
             result = errno;
-            printf("server_time_getdate: mq_open(%s) error %d  %s",
+            printf("libmessage_getdate: mq_open(%s) error %d  %s",
                     vPidClientName,result,strerror(result));
         }
     }
@@ -89,8 +92,8 @@ int server_time_getdate(const char* a_Caller, double *a_Date)
         if( 0 != result )
         {   //  error
             result = errno;
-            printf("server_time_getdate: mq_send(%s) error %d  %s",
-                    SERVER_TIME_GETDATE,result,strerror(result));
+            printf("libmessage_getdate: mq_send(%s) error %d  %s",
+                    a_Servername,result,strerror(result));
         }
     }
 
@@ -107,13 +110,12 @@ int server_time_getdate(const char* a_Caller, double *a_Date)
         if( (-1) == vLenReceive )
         {
             result = errno;
-            printf("server_time_getdate: mq_receive(%s) error %d  %s\n",
+            printf("libmessage_getdate: mq_receive(%s) error %d  %s\n",
                     vPidClientName,result,strerror(result));
-
         }
         if( sizeof(vBuffer)    != vLenReceive )
         {
-            printf("server_time_getdate: mq_receive(%lu,%s) error vLenReceive=%ld\n",
+            printf("libmessage_getdate: mq_receive(%lu,%s) error vLenReceive=%ld\n",
                     sizeof(vBuffer),vPidClientName,vLenReceive);
             result = EMSGSIZE;
         }
@@ -122,10 +124,12 @@ int server_time_getdate(const char* a_Caller, double *a_Date)
             *a_Date =  *((double*)&vBuffer);
         }
     }
-
-    mq_close(vFdServer_getdate);
-    mq_close(vFdPidClient);
-    mq_unlink(vPidClientName);
+    if( (-1) != vFdServer_getdate )
+        mq_close(vFdServer_getdate);
+    if( (-1) != vFdPidClient )
+        mq_close(vFdPidClient);
+    if ( 0 != (*vPidClientName) )
+            mq_unlink(vPidClientName);
 
     return result;
 }

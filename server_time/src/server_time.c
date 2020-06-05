@@ -21,15 +21,13 @@
 
 
 
+
 int main(void)
 {
     int result = 0;
 
-    //*****************************
-    // create new tread for listening incomming messages
-    //*****************************
+    result = libmessage_server_register(SERVER_TIME_GETDATE);
+    result = libmessage_server_wait();
 
-	libmessage_register_service();
-
-	return EXIT_SUCCESS;
+    return result;
 }
