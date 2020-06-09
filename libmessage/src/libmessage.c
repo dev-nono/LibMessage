@@ -8,21 +8,20 @@
 
 #include <errno.h>
 #include <pthread.h>
+#include <poll.h>
 
-// libmessage.h
-#include <limits.h> // libmessage.h
 
-#include "libmessage.h"
+// include ==> #include libmessage_int.h
+#include <mqueue.h>
+#include <limits.h>
 #include "libmessage_int.h"
 
 
-struct sdataThread
-{
-    pthread_t       ThreadID;
-    pthread_attr_t  Attr;
+// include ==> libmessage.h
+//#include <limits.h>
+#include "libmessage.h"
 
 
-};
 
 typedef struct sdataThread dataThread_t;
 
@@ -51,6 +50,10 @@ int libmessage_manageMessage(const char *a_Message)
 //****************************************************
 static void * libmessage_threadFunction(void * a_pArg)
 {
+    int             result  = 0;
+    struct pollfd   arrayPollfd[3]  = {0};
+    nfds_t          nfds    = 0;
+
     (void) a_pArg;
 
     do
@@ -61,6 +64,20 @@ static void * libmessage_threadFunction(void * a_pArg)
 
 
         //libmessage_m
+        result = poll(arrayPollfd, nfds, -1);
+        if ( result > 0 )
+        {
+            result = libmessage_pollCheck();
+        }
+        else if (0 == result )
+        {
+            // timeout
+        }
+        else // error
+        {
+            // print error
+
+        }
 
 
     }while(1);
@@ -106,22 +123,6 @@ int libmessage_close()
 //*
 //*
 //****************************************************
-int libmessage_server_register(const char * a_ServiceName)
-{
-    int result = 0;
-
-    // find struct service
-
-    // add service in list
-
-    // notify thread
-
-    return result;
-}
-//****************************************************
-//*
-//*
-//****************************************************
 int libmessage_server_wait()
 {
     int result = 0;
@@ -141,4 +142,15 @@ int libmessage_client_register()
 
     return result;
 }
+//****************************************************
+//*
+//*
+//****************************************************
+int libmessage_pollCheck()
+{
+    int result = 0;
+
+    return result;
+}
+
 

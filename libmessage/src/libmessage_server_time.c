@@ -25,8 +25,40 @@
 // libmessage.h
 #include <limits.h> // libmessage.h
 
+
+// include ==> #include libmessage_int.h
+#include "libmessage_int.h"
+// #include <mqueue.h>
+// #include <limits.h>
+
 #include "libmessage.h"
 
+
+
+static sDataService_t g_ArrayServices[3] =
+{
+        {0,SERVER_TIME_GETDATE,0,0},
+        {0,SERVER_TIME_SETDATE,0,0},
+        {0,SERVER_TIME_SIGNAL,0,0}
+};
+
+
+//****************************************************
+//*
+//*
+//****************************************************
+int libmessage_server_time_register()
+{
+    int result = 0;
+
+    // find struct service
+
+    // add service in list
+
+    // notify thread
+
+    return result;
+}
 
 //************************************************************
 //*

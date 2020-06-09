@@ -19,6 +19,7 @@
 #define SERVER_TIME             "/server_time"
 #define SERVER_TIME_GETDATE     SERVER_TIME".getdate"
 #define SERVER_TIME_SETDATE     SERVER_TIME".setdate"
+#define SERVER_TIME_SIGNAL      SERVER_TIME".signal"
 
 int libmessage_getdate( const char *a_Callername,
                         const char *a_Servername,
@@ -28,7 +29,7 @@ int libmessage_getdate( const char *a_Callername,
 //******************************************************
 //  services "server_system"
 //******************************************************
-
+int libmessage_server_time_register();
 
 //******************************************************
 //  generic function

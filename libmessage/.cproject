@@ -75,7 +75,7 @@
                                 								
                                 <option id="gnu.c.compiler.option.warnings.extrawarn.1197631088" name="Extra warnings (-Wextra)" superClass="gnu.c.compiler.option.warnings.extrawarn" useByScannerDiscovery="false" value="true" valueType="boolean"/>
                                 								
-                                <option id="gnu.c.compiler.option.warnings.pedantic.1930892067" superClass="gnu.c.compiler.option.warnings.pedantic" useByScannerDiscovery="false" value="true" valueType="boolean"/>
+                                <option id="gnu.c.compiler.option.warnings.pedantic.1930892067" name="Pedantic (-pedantic)" superClass="gnu.c.compiler.option.warnings.pedantic" useByScannerDiscovery="false" value="true" valueType="boolean"/>
                                 								
                                 <inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.1746378563" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
                                 							
@@ -117,11 +117,13 @@
                         					
                     </folderInfo>
                     					
+                    <fileInfo id="cdt.managedbuild.config.gnu.so.debug.1173545111.726085426" name="temp" rcbsApplicability="disable" resourcePath="src/temp" toolsToInvoke=""/>
+                    					
                     <fileInfo id="cdt.managedbuild.config.gnu.so.debug.1173545111.926647414" name="diagram_de_sequence.txt" rcbsApplicability="disable" resourcePath="diagram_de_sequence.txt" toolsToInvoke=""/>
                     					
                     <sourceEntries>
                         						
-                        <entry excluding="diagram_de_sequence.txt" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
+                        <entry excluding="src/temp|diagram_de_sequence.txt" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
                         					
                     </sourceEntries>
                     				
@@ -199,7 +201,7 @@
                                 								
                                 <option id="gnu.c.compiler.option.warnings.extrawarn.1736818820" name="Extra warnings (-Wextra)" superClass="gnu.c.compiler.option.warnings.extrawarn" useByScannerDiscovery="false" value="true" valueType="boolean"/>
                                 								
-                                <option id="gnu.c.compiler.option.warnings.pedantic.872221417" superClass="gnu.c.compiler.option.warnings.pedantic" value="true" valueType="boolean"/>
+                                <option id="gnu.c.compiler.option.warnings.pedantic.872221417" name="Pedantic (-pedantic)" superClass="gnu.c.compiler.option.warnings.pedantic" useByScannerDiscovery="false" value="true" valueType="boolean"/>
                                 								
                                 <inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.1705203748" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
                                 							
@@ -235,11 +237,13 @@
                         					
                     </folderInfo>
                     					
+                    <fileInfo id="cdt.managedbuild.config.gnu.so.release.1740784767.669277439" name="temp" rcbsApplicability="disable" resourcePath="src/temp" toolsToInvoke=""/>
+                    					
                     <fileInfo id="cdt.managedbuild.config.gnu.so.release.1740784767.1341369597" name="diagram_de_sequence.txt" rcbsApplicability="disable" resourcePath="diagram_de_sequence.txt" toolsToInvoke=""/>
                     					
                     <sourceEntries>
                         						
-                        <entry excluding="diagram_de_sequence.txt" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
+                        <entry excluding="src/temp|diagram_de_sequence.txt" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
                         					
                     </sourceEntries>
                     				
