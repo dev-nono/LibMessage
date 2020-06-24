@@ -27,6 +27,7 @@
 #define SERVER_TIME_SIGNAL      SERVER_TIME".signal"
 
 
+const char* get_arrayServiceName(uint32_t a_ServiceID );
 
 struct sDataService
 {

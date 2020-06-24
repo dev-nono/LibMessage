@@ -18,14 +18,19 @@
 
 static sDataThread_t g_DataThread[LIBMESSAGE_SRVID_END] = {0};
 
-static char g_arrayServiceName[][NAME_MAX] =
+
+sDataThread_t* getThreadContext(uint32_t a_ID)
 {
-        {SERVER_TIME_GETDATE},
-        {SERVER_TIME_SETDATE},
-        {SERVER_TIME_ID_SIGNAL}
-};
+    sDataThread_t *pThreadContext = 0;
+
+    if( LIBMESSAGE_SRVID_END > a_ID  )
+    {
+        pThreadContext = &g_DataThread[a_ID];
+    }
 
 
+    return pThreadContext ;
+}
 
 //****************************************************
 //*
@@ -80,7 +85,7 @@ int libmessage_register_serviceID(
         //  add service in list
         //*****************************************************************
         strncpy(a_pContext->arrayDataService[a_ServiceID].filenameServer,
-                g_arrayServiceName[a_ServiceID],NAME_MAX);
+                get_arrayServiceName(a_ServiceID),NAME_MAX) ;
 
         a_pContext->arrayDataService->pFuncCB = a_pFuncCB;
     } // if( 0 != pContext )
@@ -91,17 +96,27 @@ int libmessage_register_serviceID(
     //*****************************************************************
 
     vAttr.mq_flags  = O_CLOEXEC;
+    vAttr.mq_curmsgs = 9;
+    vAttr.mq_maxmsg = 9;
+    vAttr.mq_msgsize = 1024;
     errno           = 0;
     a_pContext->arrayPollfd[a_ServiceID].fd =
-            mq_open(a_pContext->arrayDataService[a_ServiceID].filenameServer, O_CREAT,S_IRWXG,&vAttr);
+            mq_open(a_pContext->arrayDataService[a_ServiceID].filenameServer,
+                    O_CREAT,S_IRWXO | S_IRWXG | S_IRWXU ,&vAttr);
 
     if( a_pContext->arrayPollfd[a_ServiceID].fd  == ( (mqd_t)(-1) ))
     {   //  error
         result = errno;
-        printf("libmessage_getdate: mq_open(%s) error %d  %s",
+        printf("libmessage_getdate: mq_open(%s) error %d  %s\n",
                 a_pContext->arrayDataService[a_ServiceID].filenameServer,
                 result,strerror(result));
     }
+    else
+    {
+        printf("libmessage_getdate: mq_open(%s) OK\n",
+                a_pContext->arrayDataService[a_ServiceID].filenameServer);
+    }
+
 
     a_pContext->nbItem++;
 
@@ -147,27 +162,37 @@ static void * libmessage_threadFunction(void * a_pArg)
 
 
         //libmessage_m
+        printf("libmessage_threadFunction: poll before \n");
         result = poll(pContext->arrayPollfd, pContext->nbItem, -1);
+        printf("libmessage_threadFunction: poll result=%d \n",result);
+
         if ( result > 0 )
         {
+            printf("libmessage_threadFunction: poll result > 0 \n");
+
             for( ii = 0; ii < pContext->nbItem; ii ++ )
             {
                 if(0 != pContext->arrayPollfd[ii].revents)
                 {
+                    printf("libmessage_threadFunction: revents != 0 \n");
                     result = libmessage_sendEvent(pContext,ii);
                 }
             }
 //            result = libmessage_pollCheck();
+            printf("libmessage_threadFunction: result = libmessage_sendEvent =%d \n",result);
         }
         else if (0 == result )
         {
             // timeout
-        }
+            printf("libmessage_threadFunction: timeout result == 0 \n");
+       }
         else // error
         {
-            // print error
+            printf("libmessage_threadFunction: timeout result == error \n");
 
         }
+        printf("libmessage_threadFunction: before while \n");
+
     }while(1);
 
 

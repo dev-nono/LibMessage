@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# set -x
+
+
+export LD_LIBRARY_PATH=$PWD/libmessage/Debug/:$LD_LIBRARY_PATH
+
+
+
+server_time/Debug/service_time

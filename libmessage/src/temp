@@ -1,0 +1,17 @@
+//****************************************************
+//*
+//*
+//****************************************************
+int libmessage_manageMessage(const char *a_Message)
+{
+    int result = 0;
+
+    if( 0 == *a_Message)
+    {
+        result = EINVAL;
+    }
+
+
+
+    return result;
+}

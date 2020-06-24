@@ -33,7 +33,7 @@
 
 int libmessage_getdate( const char *a_Callername,
                         //const char *a_Servername,
-                        int         a_ServiceID,
+        uint32_t         a_ServiceID,
                         double     *a_Date);
 
 //******************************************************
