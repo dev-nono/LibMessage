@@ -75,7 +75,11 @@
                                 								
                                 <option id="gnu.c.compiler.option.warnings.extrawarn.1197631088" name="Extra warnings (-Wextra)" superClass="gnu.c.compiler.option.warnings.extrawarn" useByScannerDiscovery="false" value="true" valueType="boolean"/>
                                 								
+<<<<<<< HEAD
                                 <option id="gnu.c.compiler.option.warnings.pedantic.1930892067" name="Pedantic (-pedantic)" superClass="gnu.c.compiler.option.warnings.pedantic" useByScannerDiscovery="false" value="false" valueType="boolean"/>
+=======
+                                <option id="gnu.c.compiler.option.warnings.pedantic.1930892067" superClass="gnu.c.compiler.option.warnings.pedantic" useByScannerDiscovery="false" value="true" valueType="boolean"/>
+>>>>>>> branch 'master' of https://github.com/dev-nono/LibMessage.git
                                 								
                                 <inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.1746378563" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
                                 							
@@ -201,7 +205,11 @@
                                 								
                                 <option id="gnu.c.compiler.option.warnings.extrawarn.1736818820" name="Extra warnings (-Wextra)" superClass="gnu.c.compiler.option.warnings.extrawarn" useByScannerDiscovery="false" value="true" valueType="boolean"/>
                                 								
+<<<<<<< HEAD
                                 <option id="gnu.c.compiler.option.warnings.pedantic.872221417" name="Pedantic (-pedantic)" superClass="gnu.c.compiler.option.warnings.pedantic" useByScannerDiscovery="false" value="false" valueType="boolean"/>
+=======
+                                <option id="gnu.c.compiler.option.warnings.pedantic.872221417" superClass="gnu.c.compiler.option.warnings.pedantic" value="true" valueType="boolean"/>
+>>>>>>> branch 'master' of https://github.com/dev-nono/LibMessage.git
                                 								
                                 <inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.1705203748" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
                                 							

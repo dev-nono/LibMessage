@@ -20,7 +20,11 @@ int main(void)
     int     result = 0;
     double  vDate = 0.0;
 
+<<<<<<< HEAD
     result = libmessage_getdate("cli_message",SERVER_TIME_ID_GETDATE,&vDate);
+=======
+    result = libmessage_getdate("cli_message",SERVER_TIME_GETDATE,&vDate);
+>>>>>>> branch 'master' of https://github.com/dev-nono/LibMessage.git
 
     printf("\ncli_message : result = %d date = %f \n",result,vDate);
 

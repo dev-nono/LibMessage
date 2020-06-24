@@ -79,7 +79,11 @@
                                     								
                                 </option>
                                 								
+<<<<<<< HEAD
                                 <option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="gnu.c.link.option.paths.1274229972" name="Library search path (-L)" superClass="gnu.c.link.option.paths" useByScannerDiscovery="false" valueType="libPaths">
+=======
+                                <option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="gnu.c.link.option.paths.1274229972" superClass="gnu.c.link.option.paths" useByScannerDiscovery="false" valueType="libPaths">
+>>>>>>> branch 'master' of https://github.com/dev-nono/LibMessage.git
                                     									
                                     <listOptionValue builtIn="false" value="&quot;${workspace_loc:/libmessage/Debug}&quot;"/>
                                     								

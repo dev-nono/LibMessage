@@ -27,6 +27,7 @@
 #include "libmessage.h"
 
 
+<<<<<<< HEAD
 
 static char g_arrayServiceName[][NAME_MAX] =
 {
@@ -47,6 +48,13 @@ const char* get_arrayServiceName(uint32_t a_ServiceID )
 int libmessage_getdate( const char* a_Callername,
                         //const char* a_Servername,
                         uint32_t         a_ServiceID,
+=======
+//************************************************************
+//*
+//************************************************************
+int libmessage_getdate( const char* a_Callername,
+                        const char* a_Servername,
+>>>>>>> branch 'master' of https://github.com/dev-nono/LibMessage.git
                         double *a_Date)
 {
     int             result  = 0;
@@ -60,7 +68,11 @@ int libmessage_getdate( const char* a_Callername,
 
     vAttr.mq_flags =     O_CLOEXEC;
 
+<<<<<<< HEAD
     if( (0 == a_Callername) || (0 == (a_Date) ) )
+=======
+    if( (0 == a_Callername) || (0 == a_Servername) || (0 == (*a_Date) ) )
+>>>>>>> branch 'master' of https://github.com/dev-nono/LibMessage.git
     {
         result = EINVAL;
     }
@@ -70,6 +82,7 @@ int libmessage_getdate( const char* a_Callername,
         snprintf(vPidClientName,NAME_MAX,"/%s.%d",a_Callername,vTid);
         *a_Date = 0.0;
 
+<<<<<<< HEAD
         vAttr.mq_flags  = O_CLOEXEC;
         vAttr.mq_curmsgs = 9;
         vAttr.mq_maxmsg = 9;
@@ -87,6 +100,18 @@ int libmessage_getdate( const char* a_Callername,
             result = errno;
             printf("libmessage_getdate: mq_open(%s) error %d  %s",
                     get_arrayServiceName(a_ServiceID),result,strerror(result));
+=======
+        //********************************
+        // open mq for request get_date
+        //********************************
+        vFdServer_getdate =  mq_open(a_Servername, O_CREAT,S_IRWXG,&vAttr);
+
+        if( vFdServer_getdate  == ( (mqd_t)(-1) ))
+        {   //  error
+            result = errno;
+            printf("libmessage_getdate: mq_open(%s) error %d  %s",
+                    a_Servername,result,strerror(result));
+>>>>>>> branch 'master' of https://github.com/dev-nono/LibMessage.git
         }
     }
     //********************************
@@ -121,7 +146,11 @@ int libmessage_getdate( const char* a_Callername,
         {   //  error
             result = errno;
             printf("libmessage_getdate: mq_send(%s) error %d  %s",
+<<<<<<< HEAD
                     get_arrayServiceName(a_ServiceID),result,strerror(result));
+=======
+                    a_Servername,result,strerror(result));
+>>>>>>> branch 'master' of https://github.com/dev-nono/LibMessage.git
         }
     }
 

@@ -8,6 +8,7 @@
 #ifndef INC_LIBMESSAGE_INT_H_
 #define INC_LIBMESSAGE_INT_H_
 
+<<<<<<< HEAD
 // include ==> #include "libmessage_int.h"
 #include <mqueue.h>
 #include <limits.h>
@@ -66,5 +67,8 @@ int libmessage_register_serviceID(
 //int libmessage_manageMessage(const char *a_Message);
 //int libmessage_pollCheck();
 
+=======
+int libmessage_manageMessage(const char *a_Message);
+>>>>>>> branch 'master' of https://github.com/dev-nono/LibMessage.git
 
 #endif /* INC_LIBMESSAGE_INT_H_ */
