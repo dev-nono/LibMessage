@@ -25,6 +25,9 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
+/* D'après POSIX.1-2001 */
+#include <sys/select.h>
+
 #include "libmessage_int.h"
 
 
@@ -70,7 +73,9 @@ int srv_getdate()
     char    buffer[1024] = {0};
 
 
+    //*********************************************************
     // create server endpoint
+    //*********************************************************
     errno = 0;
     result = mkfifo(SVR_TIME_GETDATE,S_IRWXU);
 
@@ -85,12 +90,17 @@ int srv_getdate()
         printf("server name:  -%s- \n",SVR_TIME_GETDATE);
         result = 0;
     }
+    //*********************************************************
+    //          open server endpoint
+    //*********************************************************
 
     if( 0 == result )
     {
-        // open server endpoint  argv[1] WO
+        // open server endpoint
         errno = 0;
-        fdServer = open(SVR_TIME_GETDATE,O_CLOEXEC);
+//        fdServer = open(SVR_TIME_GETDATE,S_IRWXU, O_NONBLOCK|O_CLOEXEC|O_RDONLY); // block
+//        fdServer = open(SVR_TIME_GETDATE,S_IRWXU, O_NONBLOCK|O_CLOEXEC);  // File exists
+        fdServer = open(SVR_TIME_GETDATE,O_NONBLOCK|O_CLOEXEC|O_RDONLY);  // File exists
 
         if( -1 == fdServer )
         {
@@ -103,31 +113,87 @@ int srv_getdate()
 
     if( 0 == result )
     {
+        int nfds = 0;
+        fd_set readfds = {0};
+        //fd_set writefds= {0};
+        //fd_set *exceptfds,
+        //struct timeval *timeout
+
         do
         {
-            errno = 0;
-            result = read(fdClient,buffer,1024);
+            memset(vClientName,0,sizeof(vClientName));
 
-            if( 0 == result )
+//            result =  select(int nfds, fd_set *readfds, fd_set *writefds,
+//                              fd_set *exceptfds, struct timeval *timeout);
+
+            nfds = fdServer+1;
+            printf("waiting incomming request \n");
+            FD_ZERO(&readfds);
+            FD_SET(fdServer, &readfds);
+
+
+            errno = 0;
+            result =  select( nfds, &readfds,0,0,0);
+
+            if( -1 == result )
             {
-                printf("Error %d: read(-%s-) size == 0  \n",
-                        errno,vClientName);
-            }
-            else if (-1 == result )
-            {
-                printf("Error %d: read(-%s-) %s \n",
-                        errno,vClientName,strerror(errno));
+                printf("Error %d: select() %s \n",errno,strerror(errno));
+                result = errno;
             }
             else
             {
-                printf("server response = %s  size=%d \n",buffer,result);
+                //*********************************************************
+                //          read request
+                //*********************************************************
+
+                errno = 0;
+                result = read(fdServer,vClientName,1024);
+
+                if( 0 == result )
+                {
+                    printf("Error %d: read(-%s-) size == 0  \n",
+                            errno,vClientName);
+                    result = -1;
+                }
+                else if (-1 == result )
+                {
+                    printf("Error %d: read(-%s-) %s \n",
+                            errno,vClientName,strerror(errno));
+                }
+                else
+                {
+                    printf("server response = %s  size=%d \n",vClientName,result);
+                }
+            }
+
+            //*********************************************************
+            //          open client endpoint
+            //*********************************************************
+            if( 0 < result )
+            {
+                // open client endpoint  argv[1] WO
+                errno = 0;
+                fdClient = open(vClientName,O_NONBLOCK|O_CLOEXEC|O_WRONLY);
+
+                if( -1 == fdClient  )
+                {
+                    printf("Error %d: open(-%s-) %s \n",
+                            errno,vClientName,strerror(errno));
+                    result = errno;
+                }
             }
 
 
+            //*********************************************************
+            //          write response
+            //*********************************************************
+            struct timespec tp = {0};
+            clock_gettime(CLOCK_MONOTONIC_RAW, &tp);
+            int vsize = 0;
 
-            //send request to server endpoint
+            vsize = snprintf(buffer,NAME_MAX,"%lld.%.9ld", (long long)tp.tv_sec,tp.tv_nsec);
             errno = 0;
-            result = write(fdServer,"0",1);
+            result = write(fdClient,buffer,vsize+1);
             if(-1 ==  result)
             {
                 printf("Error %d: write(-%s-) %s \n",
@@ -135,16 +201,18 @@ int srv_getdate()
             }
             else
             {
+                printf("write(%s) ok len=%d \n",buffer,vsize);
             }
 
         }while(1);
+    }
 
     return result;
 }
 //*********************************************************
 //*
 //*********************************************************
-int main(void)
+int main(int argc, char *argv[])
 {
     int result = 0;
 
