@@ -8,6 +8,9 @@
 #ifndef INC_LIBMESSAGE_COMMON_H_
 #define INC_LIBMESSAGE_COMMON_H_
 
+#define SVR_TIME_GETDATE    "/tmp/srv_time_getdate"
 typedef int (*pFuncCB_t)(char*);
+
+
 
 #endif /* INC_LIBMESSAGE_COMMON_H_ */

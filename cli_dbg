@@ -4,6 +4,6 @@
 
 
 export LD_LIBRARY_PATH=$PWD/libmessage/Debug/:$LD_LIBRARY_PATH
-./cli_message/Debug/cli_message
+./cli_message/Debug/cli_message  $1
 
 

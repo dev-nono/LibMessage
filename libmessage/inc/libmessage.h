@@ -11,6 +11,12 @@
 #include <stdint.h>
 #include "libmessage_common.h"
 
+struct sData_Getdate
+{
+    char endpointResponse[NAME_MAX];
+
+};
+
 
 ////******************************************************
 ////  services "server_time"
