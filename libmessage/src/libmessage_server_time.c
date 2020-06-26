@@ -56,7 +56,7 @@ int libmessage_srvtime_register_getdate()
 {
     int result = 0;
 
-    result = libmessage_createFifo(SVCNAME_TIME_GETDATE);
+    result = libmessage_mkfifo(SVCNAME_TIME_GETDATE);
 
 
 

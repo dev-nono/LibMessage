@@ -21,6 +21,7 @@
 
 /* D'après POSIX.1-2001 */
 #include <sys/select.h>
+#include <poll.h>
 
 
 #include "libmessage.h"
@@ -38,34 +39,16 @@ int check_fifo(const char* a_argv1)
     int nfds = 0;
     fd_set readfds = {0};
 
+    struct pollfd   vPollfd = {0};
+    nfds_t          vNfds    = 1;
+    int             vTimeout = -1;
 
     //*********************************************************
     //          create client fifo
     //*********************************************************
     snprintf(vClientName,NAME_MAX-1,"/tmp/client.%s",a_argv1);
 
-    //create client response RO
-    errno = 0;
-    result = mkfifo(vClientName,S_IRWXU);
-
-//    res   errno
-//    0     0       ok
-//    0     1       ok
-//    -1    EEXIST  ok
-//    -1    xxx     error
-
-
-    if( (0 != result ) && (EEXIST != errno) )
-    {
-        // error
-        printf("Error %d: mkfifo(-%s-) %s \n",
-                errno,vClientName,strerror(errno));
-    }
-    else
-    {
-        printf("client name:  -%s- \n",vClientName);
-        result = 0;
-    }
+    result = libmessage_mkfifo(vClientName);
 
     //*********************************************************
     //          open client endpoint
@@ -79,50 +62,73 @@ int check_fifo(const char* a_argv1)
 
         if( -1 == fdClient  )
         {
-            printf("Error %d: open(-%s-) %s \n",
+            printf("Error client %d: open(-%s-) %s \n",
                     errno,vClientName,strerror(errno));
             result = errno;
         }
         else
         {
-            printf("open -%s- OK \n",vClientName);
+            printf("client open(-%s-) OK fd=%d \n",vClientName,fdClient);
 
 
-            memset(buffer,0,sizeof(buffer));
-            result = read(fdClient,buffer,1024);
-            printf("flush 1 = %s \n",buffer);
-
-            memset(buffer,0,sizeof(buffer));
-            result = read(fdClient,buffer,1024);
-            printf("flush 2 = %s \n",buffer);
-
+//            memset(buffer,0,sizeof(buffer));
+//            result = read(fdClient,buffer,1024);
+//            printf("flush 1 = %s \n",buffer);
 
         }
     }
 
-    //*********************************************************
-    //          open server fifo
-    //*********************************************************
-    if( 0 == result )
-    {
-        // open server endpoint  argv[1] WO
-        errno = 0;
-        fdServer = open(SVR_TIME_GETDATE,O_NONBLOCK|O_CLOEXEC|O_WRONLY); //|O_CLOEXEC|O_WRONLY);
-
-        if( -1 == fdServer )
-        {
-            printf("Error %d: open(-%s-) %s \n",
-                    errno,SVR_TIME_GETDATE,strerror(errno));
-            result = errno;
-        }
-    }
 
     if( 0 == result )
     {
         do
         {
+//            do
+//            {
+//                errno = 0;
+//                result = read(fdClient,buffer,1024);
+//
+//                if( 0 == result )
+//                {
+//                    printf("flush_1 Error result==0 errno=%d: read(-%s-) size == 0  \n",
+//                            errno,vClientName);
+//                }
+//                else if (-1 == result )
+//                {
+//                    printf("flush_1 Error result == -1 , errno=%d: read(-%s-) %s \n",
+//                            errno,vClientName,strerror(errno));
+//                }
+//                else
+//                {
+//                    printf("flush_1 read server response = %s  result=%d \n",buffer,result);
+//                }
+//
+//                if (        ( result == 0 )
+//                        ||  (( result == -1 ) && (errno == EAGAIN) )) //11
+//                    break;
+//            }while( 1);
+
+            // res errno
+            // 0   0    continue
+            // -1   11  stop
+
             printf("type any key to continue \n");
             getchar();
+            if( -1 != fdServer )
+                close(fdServer);
+            //*********************************************************
+            //          open server fifo
+            //*********************************************************
+            // open server endpoint  argv[1] WO
+            errno = 0;
+            fdServer = open(SVR_TIME_GETDATE,O_NONBLOCK|O_CLOEXEC|O_WRONLY); //|O_CLOEXEC|O_WRONLY);
+
+            if( -1 == fdServer )
+            {
+                printf("Error %d: open(-%s-) %s \n",
+                        errno,SVR_TIME_GETDATE,strerror(errno));
+                result = errno;
+            }
 
             //*********************************************************
             //          write request
@@ -137,46 +143,75 @@ int check_fifo(const char* a_argv1)
             }
             else
             {
-                printf("write(%s)result=%d \n",vClientName, result);
+                printf("server write(%s) result=%d \n",vClientName, result);
             }
 
             if( 0 < result )
             {
-                nfds = fdClient+1;
-                FD_ZERO(&readfds);
-                FD_SET(fdClient, &readfds);
+                vPollfd.fd = fdClient;
+                vPollfd.events = POLLIN | POLLPRI ;
+                vPollfd.revents = 0;
 
-                errno = 0;
-                result =  select( nfds, &readfds,0,0,0);
+                do{
 
-                if( -1 == result )
+                    errno = 0;
+                    result  = poll(&vPollfd, vNfds, vTimeout);
+
+                    printf("poll  result=%d: revents=%d 0x%X \n",
+                            result, (int)vPollfd.revents,(int)vPollfd.revents);
+
+//                    if( (result ) && ( !(vPollfd.revents & POLLHUP)) )
+//                        break;
+
+                }while(0);
+
+                if( 0 > result )
                 {
-                    printf("Error %d: select() %s \n",errno,strerror(errno));
+                    printf("Error %d: poll() %s \n",errno,strerror(errno));
                     result = errno;
                 }
+
+//                nfds = fdClient+1;
+//                FD_ZERO(&readfds);
+//                FD_SET(fdClient, &readfds);
+//
+//                errno = 0;
+//                result =  select( nfds, &readfds,0,0,0);
+//
+//                if( -1 == result )
+//                {
+//                    printf("Error %d: select() %s \n",errno,strerror(errno));
+//                    result = errno;
+//                }
                 else
                 {
+//                    printf("poll  result=%d: revents=%d %X\n",
+//                            result, (int)vPollfd.revents,(int)vPollfd.revents);
+                    result = errno;
 
                     //*********************************************************
                     //          read response from server
                     //*********************************************************
-                    errno = 0;
-                    result = read(fdClient,buffer,1024);
+                    do
+                    {
+                        errno = 0;
+                        result = read(fdClient,buffer,1024);
 
-                    if( 0 == result )
-                    {
-                        printf("Error %d: read(-%s-) size == 0  \n",
-                                errno,vClientName);
-                    }
-                    else if (-1 == result )
-                    {
-                        printf("Error %d: read(-%s-) %s \n",
-                                errno,vClientName,strerror(errno));
-                    }
-                    else
-                    {
-                        printf("read server response = %s  size=%d \n",buffer,result);
-                    }
+                        if( 0 == result )
+                        {
+                            printf("Error client %d: read(-%s-) size == 0  \n",
+                                    errno,vClientName);
+                        }
+                        else if (-1 == result )
+                        {
+                            printf("Error client  %d: read(-%s-) %s \n",
+                                    errno,vClientName,strerror(errno));
+                        }
+                        else
+                        {
+                            printf("client read server response = %s  size=%d \n",buffer,result);
+                        }
+                    }while( 0 == result );
                 }
             }
 

@@ -27,6 +27,7 @@
 
 /* D'après POSIX.1-2001 */
 #include <sys/select.h>
+#include <poll.h>
 
 #include "libmessage_int.h"
 
@@ -64,6 +65,8 @@ static int libmessage_cbfcnt_getdate(char* a_pData)
 //
 //    return result;
 //}
+
+
 int srv_getdate()
 {
     int result = 0;
@@ -71,25 +74,14 @@ int srv_getdate()
     int     fdServer = -1;
     int     fdClient = -1;
     char    buffer[1024] = {0};
+    struct pollfd   vPollfd = {0};
+    nfds_t          vNfds    = 1;
+    int             vTimeout = -1;
 
 
-    //*********************************************************
-    // create server endpoint
-    //*********************************************************
-    errno = 0;
-    result = mkfifo(SVR_TIME_GETDATE,S_IRWXU);
 
-    if( (0 != result ) && (EEXIST != errno) )
-    {
-        // error
-        printf("Error %d: mkfifo(-%s-) %s \n",
-                errno,SVR_TIME_GETDATE,strerror(errno));
-    }
-    else
-    {
-        printf("server name:  -%s- \n",SVR_TIME_GETDATE);
-        result = 0;
-    }
+    result = libmessage_mkfifo(SVR_TIME_GETDATE);
+
     //*********************************************************
     //          open server endpoint
     //*********************************************************
@@ -114,32 +106,80 @@ int srv_getdate()
     if( 0 == result )
     {
         int nfds = 0;
-        fd_set readfds = {0};
+        //fd_set readfds = {0};
         //fd_set writefds= {0};
         //fd_set *exceptfds,
         //struct timeval *timeout
+
 
         do
         {
             memset(vClientName,0,sizeof(vClientName));
 
-//            result =  select(int nfds, fd_set *readfds, fd_set *writefds,
-//                              fd_set *exceptfds, struct timeval *timeout);
 
-            nfds = fdServer+1;
-            printf("waiting incomming request \n");
-            FD_ZERO(&readfds);
-            FD_SET(fdServer, &readfds);
+            vTimeout = -1;
+
+            do{
+                vPollfd.fd = fdServer;
+                vPollfd.events = POLLIN | POLLPRI ;
+                vPollfd.revents = 0;
+
+                errno = 0;
+                result  = poll(&vPollfd, vNfds, vTimeout);
+
+                printf("poll  result=%d: revents=%d 0x%X \n",
+                        result, (int)vPollfd.revents,(int)vPollfd.revents);
+
+                if( vPollfd.revents & POLLHUP )
+                {
+                    vTimeout = 100;
+                    close(fdServer);
+
+                    result = libmessage_mkfifo(SVR_TIME_GETDATE);
+
+                    fdServer = open(SVR_TIME_GETDATE,O_NONBLOCK|O_CLOEXEC|O_RDONLY);  // File exists
+
+                    if( -1 == fdServer )
+                    {
+                        printf("poll Error %d: open(-%s-) %s \n",
+                                errno,SVR_TIME_GETDATE,strerror(errno));
+                        result = errno;
+                    }
+                }
+                else if( result == 0 )
+                {
+                    vTimeout = -1;
+
+                }
+                else
+                {
+                    break;
+                }
 
 
-            errno = 0;
-            result =  select( nfds, &readfds,0,0,0);
+            }while(1);
 
-            if( -1 == result )
+            if( 0 > result )
             {
-                printf("Error %d: select() %s \n",errno,strerror(errno));
+                printf("Error %d: poll() %s \n",errno,strerror(errno));
                 result = errno;
             }
+            //            nfds = fdServer+1;
+//            printf("waiting incomming request \n");
+//            FD_ZERO(&readfds);
+//            FD_SET(fdServer, &readfds);
+//
+//
+//            errno = 0;
+////            result =  select(int nfds, fd_set *readfds, fd_set *writefds,
+////                              fd_set *exceptfds, struct timeval *timeout);
+//            result =  select( nfds, &readfds,0,0,0);
+//
+//            if( -1 == result )
+//            {
+//                printf("Error %d: select() %s \n",errno,strerror(errno));
+//                result = errno;
+//            }
             else
             {
                 //*********************************************************
@@ -183,25 +223,28 @@ int srv_getdate()
                 }
             }
 
-
-            //*********************************************************
-            //          write response
-            //*********************************************************
-            struct timespec tp = {0};
-            clock_gettime(CLOCK_MONOTONIC_RAW, &tp);
-            int vsize = 0;
-
-            vsize = snprintf(buffer,NAME_MAX,"%lld.%.9ld", (long long)tp.tv_sec,tp.tv_nsec);
-            errno = 0;
-            result = write(fdClient,buffer,vsize+1);
-            if(-1 ==  result)
+            if( 0 < result )
             {
-                printf("Error %d: write(-%s-) %s \n",
-                        errno,SVR_TIME_GETDATE,strerror(errno));
-            }
-            else
-            {
-                printf("write(%s) ok len=%d \n",buffer,vsize+1);
+
+                //*********************************************************
+                //          write response
+                //*********************************************************
+                struct timespec tp = {0};
+                clock_gettime(CLOCK_MONOTONIC_RAW, &tp);
+                int vsize = 0;
+
+                vsize = snprintf(buffer,NAME_MAX,"%lld.%.9ld", (long long)tp.tv_sec,tp.tv_nsec);
+                errno = 0;
+                result = write(fdClient,buffer,vsize+1);
+                if(-1 ==  result)
+                {
+                    printf("Error %d: write(-%s-) %s \n",
+                            errno,SVR_TIME_GETDATE,strerror(errno));
+                }
+                else
+                {
+                    printf("write(%s) ok len=%d \n",buffer,vsize+1);
+                }
             }
 
         }while(1);
@@ -231,11 +274,10 @@ int main(int argc, char *argv[])
 
 
 
-//    result = srv_getdate();
+    result = srv_getdate();
 
-    result = libmessage_srvtime_init();
-
-    result = libmessage_server_wait();
+//    result = libmessage_srvtime_init();
+//    result = libmessage_server_wait();
 
     return result;
 }

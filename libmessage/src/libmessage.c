@@ -345,9 +345,12 @@ static void * libmessage_threadFunction(void * a_pArg)
 //******************************************************
 //
 //******************************************************
-int libmessage_createFifo(const char* a_endpointName)
+int libmessage_mkfifo(const char* a_endpointName)
 {
     int result = 0;
+
+
+    result = unlink(a_endpointName);
 
     //*********************************************************
     // create server endpoint
@@ -358,12 +361,12 @@ int libmessage_createFifo(const char* a_endpointName)
     if( (0 != result ) && (EEXIST != errno) )
     {
         // error
-        printf("Error %d: mkfifo(-%s-) %s \n",
+        printf("libmessage_mkfifo: mkfifo(-%s-) Error=%d %s \n",
                 errno,a_endpointName,strerror(errno));
     }
     else
     {
-        printf("server name:  -%s- \n",a_endpointName);
+        printf("libmessage_mkfifo :  -%s- OK \n",a_endpointName);
         result = 0;
     }
 
@@ -404,4 +407,5 @@ int libmessage_srvtime_init()
 
     return result;
 }
+
 
