@@ -201,7 +201,7 @@ int srv_getdate()
             }
             else
             {
-                printf("write(%s) ok len=%d \n",buffer,vsize);
+                printf("write(%s) ok len=%d \n",buffer,vsize+1);
             }
 
         }while(1);
@@ -209,6 +209,8 @@ int srv_getdate()
 
     return result;
 }
+
+
 //*********************************************************
 //*
 //*********************************************************
@@ -229,7 +231,11 @@ int main(int argc, char *argv[])
 
 
 
-    result = srv_getdate();
+//    result = srv_getdate();
+
+    result = libmessage_srvtime_init();
+
+    result = libmessage_server_wait();
 
     return result;
 }

@@ -32,7 +32,7 @@ static char g_arrayServiceName[][NAME_MAX] =
 {
         {SERVER_TIME_GETDATE},
         {SERVER_TIME_SETDATE},
-        {SERVER_TIME_ID_SIGNAL}
+        {SERVER_TIME_SIGNAL}
 };
 
 

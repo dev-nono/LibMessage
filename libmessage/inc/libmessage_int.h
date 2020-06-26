@@ -39,22 +39,24 @@ struct sDataService
 typedef struct sDataService   sDataService_t;
 
 
-struct sDataThread
+typedef struct pollfd pollfd_t;
+
+struct sDataThreadCtx
 {
     pthread_t       pthreadID;
     pthread_attr_t  Attr;
 
     pid_t           pid;
 
-    struct pollfd   arrayPollfd[100];
+    pollfd_t        arrayPollfd[100];
     sDataService_t  arrayDataService[100];
     int             nbItem;
 };
-typedef struct sDataThread sDataThread_t;
+typedef struct sDataThreadCtx sDataThreadCtx_t;
 
 
 int libmessage_register_serviceID(
-        sDataThread_t *a_pContext,
+        sDataThreadCtx_t *a_pContext,
         uint32_t    a_ServiceID ,   // SERVER_TIME_ID_GETDATE, SERVER_TIME_ID_SETDATE SERVER_TIME_ID_xxx
         pFuncCB_t   a_pFuncCB );
 

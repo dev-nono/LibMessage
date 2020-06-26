@@ -26,21 +26,37 @@ struct sData_Getdate
 //#define SERVER_TIME_SETDATE     SERVER_TIME".setdate"
 //#define SERVER_TIME_SIGNAL      SERVER_TIME".signal"
 
+//*******************************************************
+//          SERVER ID
+//*******************************************************
 #define LIBMESSAGE_SRVID_TIME       (0U)
 #define LIBMESSAGE_SRVID_NETWORK    (1U)
 #define LIBMESSAGE_SRVID_END    (LIBMESSAGE_SRVID_NETWORK+(1U))
 
-#define SERVER_TIME_ID_GETDATE  (0U)
-#define SERVER_TIME_ID_SETDATE  (1U)
-#define SERVER_TIME_ID_SIGNAL   (2U)
+//*******************************************************
+//          SERVICES ID
+//*******************************************************
+#define LIBMESSAGE_SVCID_TIME_GETDATE  (0U)
+#define LIBMESSAGE_SVCID_TIME_SETDATE  (1U)
 
-#define SERVER_NET_ID_NETADD       (0U)
-#define SERVER_NET_ID_NETREMOVE    (1U)
+#define LIBMESSAGE_SVCID_TIME_SIGNAL   (2U)
+#define LIBMESSAGE_SVCID_TIME_END      (LIBMESSAGE_SVCID_TIME_SIGNAL+(1U))
+
+
+#define LIBMESSAGE_SVCID_NET_ADD       (0U)
+#define LIBMESSAGE_SVCID_NET_REMOVE    (1U)
+#define LIBMESSAGE_SVCID_NET_END       (2U)
 
 int libmessage_getdate( const char *a_Callername,
                         //const char *a_Servername,
         uint32_t         a_ServiceID,
                         double     *a_Date);
+
+
+//******************************************************
+//  service time
+//******************************************************
+int libmessage_srvtime_init();
 
 //******************************************************
 //
