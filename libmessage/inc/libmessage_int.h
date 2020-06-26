@@ -16,23 +16,24 @@
 
 #include "libmessage_common.h"
 
-#define LIBMESSAGE_MAX_BUFFER 1024
+#define LIBMESSAGE_MAX_BUFFER   (1024U)
+#define LIBMESSAGE_MAX_ARRAY    (100U)
 
 //******************************************************
 //  services "server_time"
 //******************************************************
-#define SERVER_TIME             "/server_time"
-#define SERVER_TIME_GETDATE     SERVER_TIME".getdate"
-#define SERVER_TIME_SETDATE     SERVER_TIME".setdate"
-#define SERVER_TIME_SIGNAL      SERVER_TIME".signal"
-
+#define SVCNAME_TIME             "/srv_time"
+#define SVCNAME_TIME_GETDATE     SVCNAME_TIME".getdate"
+#define SVCNAME_TIME_SETDATE     SVCNAME_TIME".setdate"
+#define SVCNAME_TIME_SIGNAL      SVCNAME_TIME".signal"
+#define SVCNAME_TIME_END              ""
 
 const char* get_arrayServiceName(uint32_t a_ServiceID );
 
 struct sDataService
 {
-    char            filenameClient[NAME_MAX+1];
-    char            filenameServer[NAME_MAX+1];
+    char            filenameClient[NAME_MAX+(1)];
+    char            filenameServer[NAME_MAX+(1)];
     pFuncCB_t       pFuncCB;
     int             id;
 };
@@ -48,8 +49,8 @@ struct sDataThreadCtx
 
     pid_t           pid;
 
-    pollfd_t        arrayPollfd[100];
-    sDataService_t  arrayDataService[100];
+    pollfd_t        arrayPollfd[LIBMESSAGE_MAX_ARRAY];
+    sDataService_t  arrayDataService[LIBMESSAGE_MAX_ARRAY];
     int             nbItem;
 };
 typedef struct sDataThreadCtx sDataThreadCtx_t;
@@ -67,6 +68,11 @@ int libmessage_register_serviceID(
 
 //int libmessage_manageMessage(const char *a_Message);
 //int libmessage_pollCheck();
+
+
+int libmessage_srvtime_register_getdate();
+
+int libmessage_createFifo(const char* a_endpointName);
 
 
 #endif /* INC_LIBMESSAGE_INT_H_ */

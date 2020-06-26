@@ -30,15 +30,38 @@
 
 static char g_arrayServiceName[][NAME_MAX] =
 {
-        {SERVER_TIME_GETDATE},
-        {SERVER_TIME_SETDATE},
-        {SERVER_TIME_SIGNAL}
+        {SVCNAME_TIME_GETDATE},
+        {SVCNAME_TIME_SETDATE},
+        {SVCNAME_TIME_SIGNAL},
+        {SVCNAME_TIME_END}
 };
 
 
 const char* get_arrayServiceName(uint32_t a_ServiceID )
 {
-    return  g_arrayServiceName[a_ServiceID] ;
+    char *serviceName = 0;
+
+    if( LIBMESSAGE_SVCID_TIME_END < a_ServiceID )
+    {
+        serviceName = g_arrayServiceName[a_ServiceID] ;
+    }
+
+    return serviceName;
+}
+
+//************************************************************
+//*
+//************************************************************
+int libmessage_srvtime_register_getdate()
+{
+    int result = 0;
+
+    result = libmessage_createFifo(SVCNAME_TIME_GETDATE);
+
+
+
+
+    return result;
 }
 
 //************************************************************

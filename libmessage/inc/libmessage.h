@@ -31,14 +31,13 @@ struct sData_Getdate
 //*******************************************************
 #define LIBMESSAGE_SRVID_TIME       (0U)
 #define LIBMESSAGE_SRVID_NETWORK    (1U)
-#define LIBMESSAGE_SRVID_END    (LIBMESSAGE_SRVID_NETWORK+(1U))
+#define LIBMESSAGE_SRVID_END        (LIBMESSAGE_SRVID_NETWORK+(1U))
 
 //*******************************************************
 //          SERVICES ID
 //*******************************************************
 #define LIBMESSAGE_SVCID_TIME_GETDATE  (0U)
 #define LIBMESSAGE_SVCID_TIME_SETDATE  (1U)
-
 #define LIBMESSAGE_SVCID_TIME_SIGNAL   (2U)
 #define LIBMESSAGE_SVCID_TIME_END      (LIBMESSAGE_SVCID_TIME_SIGNAL+(1U))
 

@@ -19,7 +19,9 @@
 
 static sDataThreadCtx_t g_DataThread[LIBMESSAGE_SRVID_END] = {0};
 
-
+//*****************************************************************
+//*
+//*****************************************************************
 sDataThreadCtx_t* getThreadContext(uint32_t a_ThreadCtx)
 {
     sDataThreadCtx_t *pThreadContext = 0;
@@ -31,7 +33,9 @@ sDataThreadCtx_t* getThreadContext(uint32_t a_ThreadCtx)
 
     return pThreadContext ;
 }
-
+//*****************************************************************
+//*
+//*****************************************************************
 sDataService_t *getDataservice(uint32_t a_ThreadCtx, uint32_t a_DataServiceID)
 {
     sDataService_t * pDataservice  = 0;
@@ -58,7 +62,9 @@ sDataService_t *getDataservice(uint32_t a_ThreadCtx, uint32_t a_DataServiceID)
 
     return pDataservice ;
 }
-
+//*****************************************************************
+//*
+//*****************************************************************
 pollfd_t *getPollfd(uint32_t a_ThreadCtx, uint32_t a_DataServiceID)
 {
     pollfd_t * pPollfd = 0;
@@ -293,28 +299,28 @@ static void * libmessage_threadFunction(void * a_pArg)
 //*
 //*
 //****************************************************
-int libmessage_server_wait()
-{
-    int result = 0;
-
-    //*****************************
-    // LIBMESSAGE_ID_TIME
-    //*****************************
-    result =  pthread_create(   &(g_DataThread[LIBMESSAGE_SRVID_TIME].pthreadID),
-                                NULL,
-                                &libmessage_threadFunction,
-                                (void*)&g_DataThread[LIBMESSAGE_SRVID_TIME]);
-
-    result = pthread_join(g_DataThread[LIBMESSAGE_SRVID_TIME].pthreadID,0);
-
-
-    //*****************************
-    // LIBMESSAGE_ID_END
-    //*****************************
-
-    // wait on end of thread
-    return result;
-}
+//int libmessage_server_wait()
+//{
+//    int result = 0;
+//
+//    //*****************************
+//    // LIBMESSAGE_ID_TIME
+//    //*****************************
+//    result =  pthread_create(   &(g_DataThread[LIBMESSAGE_SRVID_TIME].pthreadID),
+//                                NULL,
+//                                &libmessage_threadFunction,
+//                                (void*)&g_DataThread[LIBMESSAGE_SRVID_TIME]);
+//
+//    result = pthread_join(g_DataThread[LIBMESSAGE_SRVID_TIME].pthreadID,0);
+//
+//
+//    //*****************************
+//    // LIBMESSAGE_ID_END
+//    //*****************************
+//
+//    // wait on end of thread
+//    return result;
+//}
 //****************************************************
 //*
 //*
@@ -336,7 +342,44 @@ int libmessage_server_wait()
 //    return result;
 //}
 
+//******************************************************
+//
+//******************************************************
+int libmessage_createFifo(const char* a_endpointName)
+{
+    int result = 0;
 
+    //*********************************************************
+    // create server endpoint
+    //*********************************************************
+    errno = 0;
+    result = mkfifo(a_endpointName,S_IRWXU);
+
+    if( (0 != result ) && (EEXIST != errno) )
+    {
+        // error
+        printf("Error %d: mkfifo(-%s-) %s \n",
+                errno,a_endpointName,strerror(errno));
+    }
+    else
+    {
+        printf("server name:  -%s- \n",a_endpointName);
+        result = 0;
+    }
+
+    return result;
+}
+//******************************************************
+//
+//******************************************************
+
+//******************************************************
+//
+//******************************************************
+
+//******************************************************
+//
+//******************************************************
 
 //******************************************************
 //  server time
@@ -349,6 +392,9 @@ int libmessage_srvtime_init()
     // register all services
     //***************************************************
 
+    result = libmessage_srvtime_register_getdate();
+//    result = libmessage_srvtime_svc_setdate();
+//    result = libmessage_srvtime_svc_signal();
 
     //***************************************************
     // create thread listener
