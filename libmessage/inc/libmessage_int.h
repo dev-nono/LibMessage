@@ -72,7 +72,6 @@ int libmessage_register_serviceID(
 
 int libmessage_srvtime_register_getdate();
 
-int libmessage_mkfifo(const char * a_Fifoname);
 
 
 

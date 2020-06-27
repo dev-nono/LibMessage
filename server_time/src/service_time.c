@@ -78,6 +78,8 @@ int srv_getdate()
     nfds_t          vNfds    = 1;
     int             vTimeout = -1;
 
+    int ii = 0;
+
 
 
     result = libmessage_mkfifo(SVR_TIME_GETDATE);
@@ -90,9 +92,7 @@ int srv_getdate()
     {
         // open server endpoint
         errno = 0;
-//        fdServer = open(SVR_TIME_GETDATE,S_IRWXU, O_NONBLOCK|O_CLOEXEC|O_RDONLY); // block
-//        fdServer = open(SVR_TIME_GETDATE,S_IRWXU, O_NONBLOCK|O_CLOEXEC);  // File exists
-        fdServer = open(SVR_TIME_GETDATE,O_NONBLOCK|O_CLOEXEC|O_RDONLY);  // File exists
+        fdServer = open(SVR_TIME_GETDATE,O_NONBLOCK|O_CLOEXEC|O_RDONLY);
 
         if( -1 == fdServer )
         {
@@ -105,12 +105,6 @@ int srv_getdate()
 
     if( 0 == result )
     {
-        int nfds = 0;
-        //fd_set readfds = {0};
-        //fd_set writefds= {0};
-        //fd_set *exceptfds,
-        //struct timeval *timeout
-
 
         do
         {
@@ -132,31 +126,24 @@ int srv_getdate()
 
                 if( vPollfd.revents & POLLHUP )
                 {
-                    vTimeout = 100;
                     close(fdServer);
-
-                    result = libmessage_mkfifo(SVR_TIME_GETDATE);
 
                     fdServer = open(SVR_TIME_GETDATE,O_NONBLOCK|O_CLOEXEC|O_RDONLY);  // File exists
 
+                    printf("poll POLLHUP %d: open_2(-%s-) %s fdServer=%d\n",
+                            errno,SVR_TIME_GETDATE,strerror(errno),fdServer);
+
                     if( -1 == fdServer )
                     {
-                        printf("poll Error %d: open(-%s-) %s \n",
+                        printf("poll POLLHUP Error %d: open_2(-%s-) %s \n",
                                 errno,SVR_TIME_GETDATE,strerror(errno));
                         result = errno;
                     }
-                }
-                else if( result == 0 )
-                {
-                    vTimeout = -1;
-
                 }
                 else
                 {
                     break;
                 }
-
-
             }while(1);
 
             if( 0 > result )
@@ -164,31 +151,21 @@ int srv_getdate()
                 printf("Error %d: poll() %s \n",errno,strerror(errno));
                 result = errno;
             }
-            //            nfds = fdServer+1;
-//            printf("waiting incomming request \n");
-//            FD_ZERO(&readfds);
-//            FD_SET(fdServer, &readfds);
-//
-//
-//            errno = 0;
-////            result =  select(int nfds, fd_set *readfds, fd_set *writefds,
-////                              fd_set *exceptfds, struct timeval *timeout);
-//            result =  select( nfds, &readfds,0,0,0);
-//
-//            if( -1 == result )
-//            {
-//                printf("Error %d: select() %s \n",errno,strerror(errno));
-//                result = errno;
-//            }
             else
             {
-                //*********************************************************
-                //          read request
-                //*********************************************************
-
+                memset(vClientName,0,sizeof(vClientName));
                 errno = 0;
                 result = read(fdServer,vClientName,1024);
-
+static int vsleep = 0; // TODO
+if( vsleep == 0)
+{
+    usleep( 600 * 1000);
+    vsleep = 1;
+}
+else
+{
+    vsleep = 0;
+}
                 if( 0 == result )
                 {
                     printf("Error %d: read(-%s-) size == 0  \n",

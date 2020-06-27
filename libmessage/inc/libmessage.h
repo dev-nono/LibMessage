@@ -73,6 +73,7 @@ int libmessage_register_service(
 
 
 int libmessage_server_wait();
+int libmessage_mkfifo(const char * a_Fifoname);
 
 //int libmessage_client_register();
 
