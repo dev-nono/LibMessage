@@ -23,6 +23,7 @@
 #include <sys/types.h>
 #include <limits.h>
 
+#include "libmessage_common.h"
 #include "libmessage_int.h"
 #include "libmessage.h"
 
@@ -37,17 +38,17 @@ static char g_arrayServiceName[][NAME_MAX] =
 };
 
 
-const char* get_arrayServiceName(uint32_t a_ServiceID )
-{
-    char *serviceName = 0;
-
-    if( LIBMESSAGE_SVCID_TIME_END < a_ServiceID )
-    {
-        serviceName = g_arrayServiceName[a_ServiceID] ;
-    }
-
-    return serviceName;
-}
+//const char* get_arrayServiceName(uint32_t a_ServiceID )
+//{
+//    char *serviceName = 0;
+//
+//    if( LIBMESSAGE_SVCID_TIME_END < a_ServiceID )
+//    {
+//        serviceName = g_arrayServiceName[a_ServiceID] ;
+//    }
+//
+//    return serviceName;
+//}
 
 //************************************************************
 //*
@@ -64,172 +65,55 @@ int libmessage_srvtime_register_getdate()
     return result;
 }
 //************************************************************
-//*
+//* return:
+//      EXIT_SUCCESS    0
+//      EINVAL          22  Invalid argument
 //************************************************************
 int libmessage_getdate( const char *a_Callername,
-                        //const char *a_Servername,
-        uint32_t         a_ServiceID,
-                        double     *a_Date,
-                        sem_t *a_pSemGedate)
+                        double     *a_Date)
 {
-    int result = 0;
-    int result2 = 0;
-    char    vClientName[NAME_MAX] = {0};
-    int     fdServer = -1;
-    char    buffer[1024] = {0};
+    int result = EXIT_SUCCESS;
 
-    struct pollfd   vPollfdClient = {0};
-    nfds_t          vNfds    = 1;
-    int             vTimeout = 500;
+    sDataService_t vDataService = {0};
 
-    vPollfdClient.fd      = -1;
-
-    //*********************************************************
-    //          create client fifo
-    //*********************************************************
-    snprintf(vClientName,NAME_MAX-1,"/tmp/client.%s",a_Callername);
-
-    //result = unlink(vClientName);
-
-    result = libmessage_mkfifo(vClientName);
-
-    //*********************************************************
-    //          open client endpoint
-    //*********************************************************
-    if( 0 == result )
+    if( (!a_Callername) || (!*a_Callername) || (!a_Date) )
     {
-        result = libmessage_openfifo(vClientName,O_RDONLY,&vPollfdClient.fd );
+        result = EINVAL ;
     }
 
-    //*********************************************************
-    //          open server fifo
-    //*********************************************************
-    if( 0 == result )
+    if( EXIT_SUCCESS == result )
     {
-        // open server endpoint  argv[1]
-        fdServer = -1;
-        result = libmessage_openfifo(SVR_TIME_GETDATE,O_WRONLY,&fdServer);
-    }
+        strncpy(vDataService.filenameClient,
+                a_Callername,
+                sizeof(vDataService.filenameClient)-1);
 
-    struct timespec abs_timeout = {0,1e9 / 100  };
-    //***************************************************
-    //              lock
-    //***************************************************
-    result = sem_timedwait(a_pSemGedate,&abs_timeout);
-    printf("%s _1_ sem_wait() result=%d err=%d %s \n",
-            getStrDate(),result,errno,strerror(errno));
+        strncpy(vDataService.filenameServer,
+                SVCNAME_TIME_GETDATE,
+                sizeof(vDataService.filenameServer)-1);
 
-
-    //*********************************************************
-    //          write request
-    //*********************************************************
-    if( 0 == result )
-    {
-        //send request to server endpoint
-        errno = 0;
-        result = write(fdServer,vClientName,strlen(vClientName));
-
-        if(-1 ==  result)
-        {
-            printf("%s _2_ server write(-%s-) Error %d %s \n",
-                    getStrDate(),SVR_TIME_GETDATE,errno,strerror(errno));
-            result = errno;
-        }
-        else
-        {
-            printf("%s _21_ server write(%s) result=%d \n",
-                    getStrDate(),SVR_TIME_GETDATE, result);
-            result = 0;
-        }
-            close(fdServer);
-            fdServer = -1;
-     result = sem_post(a_pSemGedate);
-   }
-
-
-    fprintf(stderr,"%s _3_ sem_post resulty=%d err=%d %s\n",
-            getStrDate(),result,errno,strerror(errno));
-
-//    printf("%s _3_ type any key to continue 1 \n",getStrDate());
-//    getchar();
-
-    //*********************************************************
-    //      waiting receive response : polling
-    //*********************************************************
-    if( 0 == result )
-    {
-        vPollfdClient.events = POLLIN | POLLPRI ;
-        vPollfdClient.revents = 0;
-        vTimeout = -1;
 
         errno = 0;
-        result  = poll(&vPollfdClient, vNfds, vTimeout);
+        vDataService.pSemsvc = sem_open(SVR_TIME_GETDATE_SEM,0);
+        fprintf(stderr,"sem_open(%s) result=0x%p errno=%d %s ",
+                SVR_TIME_GETDATE_SEM,(void*)vDataService.pSemsvc,
+                errno,strerror(errno));
 
-        printf("%s _31_ poll  result=%d: revents=%d 0x%X \n",
-                getStrDate(),result,
-                (int)vPollfdClient.revents,(int)vPollfdClient.revents);
-
-
-        if( ( -1 == result ) )
+        if( SEM_FAILED == vDataService.pSemsvc)
         {
-            printf("%s _32_ poll() errno=%d %s \n",
-                    getStrDate(),errno,strerror(errno));
             result = errno;
         }
-        else if( (result ) && ( vPollfdClient.revents & POLLHUP) )
-        {
-            printf("%s _33_ poll() result=%d POLLHUP event \n",
-                    getStrDate(),result);
 
-            result = EPIPE;
-        }
-        else if( 0 == result )
-        {
-            printf("%s _34_ poll() Error Timeout %d %s \n",
-                    getStrDate(),errno,strerror(errno));
-            result = errno;
-        }
-        else
-        {
-            result = 0;
-        }
+        vDataService.pFuncCB = 0;
     }
 
-    //*********************************************************
-    //          read response from server
-    //*********************************************************
-  if( 0 == result )
+    if( EXIT_SUCCESS == result )
     {
-
-        memset(buffer,0,sizeof(buffer));
-        errno = 0;
-        result = read(vPollfdClient.fd,buffer,1024);
-
-        if( 0 == result )
-        {
-            printf("%s _4_ read(-%s-) Error client %d:  result == 0  \n",
-                    getStrDate(),vClientName,result);
-        }
-        else if (-1 == result )
-        {
-            printf("%s _41_ read(-%s-) error client %d %s \n",
-                    getStrDate(),vClientName,errno,strerror(errno));
-        }
-        else
-        {
-            printf("%s _42_ client read server response = %s  size=%d \n",
-                    getStrDate(),buffer,result);
-        }
+        result = libmessage_svc_getdata(&vDataService);
     }
-
-  if( -1 != fdServer)
-      close(fdServer);
-
-  if( -1 != vPollfdClient.fd)
-      close(vPollfdClient.fd);
 
     return result;
 }
+
 
 //************************************************************
 //*

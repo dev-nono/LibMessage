@@ -90,7 +90,6 @@ int srv_getdate()
     int ii = 0;
 
 
-
     result = libmessage_mkfifo(SVR_TIME_GETDATE);
 
     //*********************************************************
@@ -310,21 +309,23 @@ int main(int argc, char *argv[])
 //    result = libmessage_server_wait();
 
 
-    sem_unlink(SVR_TIME_GETDATE_SEM);
-    errno = 0;
-    g_pSemGedate = sem_open(SVR_TIME_GETDATE_SEM,
-            O_CREAT,
-            S_ISVTX|S_IRWXU|S_IRWXG|S_IRWXO,/* 07777 */
-            //S_IRWXU | S_IRWXG |S_IRWXO
-            1);
-    fprintf(stderr,"sem_open(%s) result=0x%p errno=%d %s \n",
-            SVR_TIME_GETDATE_SEM,(void*)g_pSemGedate,
-            errno,strerror(errno));
-
-
-    result = srv_getdate();
-
-    //result = libmessage_srvtime_init();
+//    sem_unlink(SVR_TIME_GETDATE_SEM);
+//    errno = 0;
+//    g_pSemGedate = sem_open(SVR_TIME_GETDATE_SEM,
+//            O_CREAT,
+//            S_ISVTX|S_IRWXU|S_IRWXG|S_IRWXO,/* 07777 */
+//            //S_IRWXU | S_IRWXG |S_IRWXO
+//            1);
+//    fprintf(stderr,"sem_open(%s) result=0x%p errno=%d %s \n",
+//            SVR_TIME_GETDATE_SEM,(void*)g_pSemGedate,
+//            errno,strerror(errno));
+//
+//
+//    result = srv_getdate();
+//
+//
+//
+    result = libmessage_srvtime_init();
 
 //    if( 0 == result )
 //    {

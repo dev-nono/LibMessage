@@ -8,6 +8,8 @@
 #ifndef INC_LIBMESSAGE_COMMON_H_
 #define INC_LIBMESSAGE_COMMON_H_
 
+#include <stdlib.h> // EXIT_SUCCESS;
+
 #define SVR_TIME            "srvtime"
 #define SVC_GETDATE         "getdate"
 #define SVR_TIME_GETDATE    "/tmp/"SVR_TIME"."SVC_GETDATE

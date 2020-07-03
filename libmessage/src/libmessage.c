@@ -19,82 +19,249 @@
 #include "libmessage.h"
 
 
-
-static sDataThreadCtx_t g_DataThread[LIBMESSAGE_SRVID_END] = {0};
-
-//*****************************************************************
+//************************************************************
 //*
-//*****************************************************************
-sDataThreadCtx_t* getThreadContext(uint32_t a_ThreadCtx)
+//************************************************************
+int libmessage_svc_getdata(const sDataService_t a_pDataService)
 {
-    sDataThreadCtx_t *pThreadContext = 0;
+    int result = 0;
+    char    vClientName[NAME_MAX] = {0};
+    int     fdServer = -1;
+    char    dataBuffer[PIPE_BUF];
 
-    if( LIBMESSAGE_SRVID_END > a_ThreadCtx  )
+    struct pollfd   vPollfdClient = {0};
+    nfds_t          vNfds    = 1;
+    int             vTimeout = 500;
+
+    vPollfdClient.fd      = -1;
+
+    //*********************************************************
+    //          create client fifo
+    //*********************************************************
+    snprintf(vClientName,NAME_MAX-1,"/tmp/client.%s",a_pDataService.filenameClient);
+
+    //result = unlink(vClientName);
+
+    result = libmessage_mkfifo(vClientName);
+
+    //*********************************************************
+    //          open client endpoint
+    //*********************************************************
+    if( 0 == result )
     {
-        pThreadContext = &g_DataThread[a_ThreadCtx];
+        result = libmessage_openfifo(vClientName,O_RDONLY,&vPollfdClient.fd );
     }
 
-    return pThreadContext ;
+    //*********************************************************
+    //          open server fifo
+    //*********************************************************
+    if( 0 == result )
+    {
+        // open server endpoint  argv[1]
+        fdServer = -1;
+        result = libmessage_openfifo(a_pDataService.filenameServer,O_WRONLY,&fdServer);
+    }
+
+    struct timespec abs_timeout = {0,1e9 / 100  };
+    //***************************************************
+    //              lock
+    //***************************************************
+    result = sem_timedwait(a_pDataService.pSemsvc,&abs_timeout);
+    printf("%s _1_ sem_wait() result=%d err=%d %s \n",
+            getStrDate(),result,errno,strerror(errno));
+
+
+    //*********************************************************
+    //          write request
+    //*********************************************************
+    if( 0 == result )
+    {
+        //send request to server endpoint
+        errno = 0;
+        result = write(fdServer,vClientName,strlen(vClientName));
+
+        if(-1 ==  result)
+        {
+            printf("%s _2_ server write(-%s-) Error %d %s \n",
+                    getStrDate(),a_pDataService.filenameServer,errno,strerror(errno));
+            result = errno;
+        }
+        else
+        {
+            printf("%s _21_ server write(%s) result=%d \n",
+                    getStrDate(),a_pDataService.filenameServer, result);
+            result = 0;
+        }
+            close(fdServer);
+            fdServer = -1;
+
+            result = sem_post(a_pDataService.pSemsvc);
+   }
+
+
+    fprintf(stderr,"%s _3_ sem_post resulty=%d err=%d %s\n",
+            getStrDate(),result,errno,strerror(errno));
+
+//    printf("%s _3_ type any key to continue 1 \n",getStrDate());
+//    getchar();
+
+    //*********************************************************
+    //      waiting receive response : polling
+    //*********************************************************
+    if( 0 == result )
+    {
+        vPollfdClient.events = POLLIN | POLLPRI ;
+        vPollfdClient.revents = 0;
+        vTimeout = -1;
+
+        errno = 0;
+        result  = poll(&vPollfdClient, vNfds, vTimeout);
+
+        printf("%s _31_ poll  result=%d: revents=%d 0x%X \n",
+                getStrDate(),result,
+                (int)vPollfdClient.revents,(int)vPollfdClient.revents);
+
+
+        if( ( -1 == result ) )
+        {
+            printf("%s _32_ poll() errno=%d %s \n",
+                    getStrDate(),errno,strerror(errno));
+            result = errno;
+        }
+        else if( (result ) && ( vPollfdClient.revents & POLLHUP) )
+        {
+            printf("%s _33_ poll() result=%d POLLHUP event \n",
+                    getStrDate(),result);
+
+            result = EPIPE;
+        }
+        else if( 0 == result )
+        {
+            printf("%s _34_ poll() Error Timeout %d %s \n",
+                    getStrDate(),errno,strerror(errno));
+            result = errno;
+        }
+        else
+        {
+            result = 0;
+        }
+    }
+
+    //*********************************************************
+    //          read response from server
+    //*********************************************************
+  if( 0 == result )
+    {
+
+        memset(dataBuffer,0,sizeof(dataBuffer));
+        errno = 0;
+        result = read(vPollfdClient.fd,dataBuffer,1024);
+
+        if( 0 == result )
+        {
+            printf("%s _4_ read(-%s-) Error client %d:  result == 0  \n",
+                    getStrDate(),vClientName,result);
+        }
+        else if (-1 == result )
+        {
+            printf("%s _41_ read(-%s-) error client %d %s \n",
+                    getStrDate(),vClientName,errno,strerror(errno));
+        }
+        else
+        {
+            printf("%s _42_ client read server response = %s  size=%d \n",
+                    getStrDate(),dataBuffer,result);
+
+            memcpy(a_pDataService.databuffer,
+                    dataBuffer,
+                    sizeof(a_pDataService.databuffer));
+        }
+    }
+
+  if( -1 != fdServer)
+      close(fdServer);
+
+  if( -1 != vPollfdClient.fd)
+      close(vPollfdClient.fd);
+
+    return result;
 }
-//*****************************************************************
-//*
-//*****************************************************************
-sDataService_t *getDataservice(uint32_t a_ThreadCtx, uint32_t a_DataServiceID)
-{
-    sDataService_t * pDataservice  = 0;
-    sDataThreadCtx_t *pDataThreadCtx = getThreadContext(a_ThreadCtx);
 
-    if( ( pDataThreadCtx ) &&  (LIBMESSAGE_SRVID_TIME == a_ThreadCtx))
-    {
-        if( LIBMESSAGE_SVCID_TIME_END > a_DataServiceID )
-        {
-            pDataservice = &pDataThreadCtx->arrayDataService[a_DataServiceID];
-        }
-    }
-    else if( ( pDataThreadCtx ) &&  (LIBMESSAGE_SRVID_NETWORK == a_ThreadCtx))
-    {
-        if( LIBMESSAGE_SVCID_NET_END > a_DataServiceID )
-        {
-            pDataservice = &pDataThreadCtx->arrayDataService[a_DataServiceID];
-        }
-    }
-    else // LIBMESSAGE_SRVID_END
-    {
+//static sDataThreadCtx_t g_DataThread[LIBMESSAGE_SRVID_END] = {0};
 
-    }
-
-    return pDataservice ;
-}
-//*****************************************************************
-//*
-//*****************************************************************
-pollfd_t *getPollfd(uint32_t a_ThreadCtx, uint32_t a_DataServiceID)
-{
-    pollfd_t * pPollfd = 0;
-
-    sDataThreadCtx_t *pDataThreadCtx = getThreadContext(a_ThreadCtx);
-
-    if( ( pDataThreadCtx ) &&  (LIBMESSAGE_SRVID_TIME == a_ThreadCtx))
-    {
-        if( LIBMESSAGE_SVCID_TIME_END > a_DataServiceID )
-        {
-            pPollfd = &pDataThreadCtx->arrayPollfd[a_DataServiceID];
-        }
-    }
-    else if( ( pDataThreadCtx ) &&  (LIBMESSAGE_SRVID_NETWORK == a_ThreadCtx))
-    {
-        if( LIBMESSAGE_SVCID_NET_END > a_DataServiceID )
-        {
-            pPollfd = &pDataThreadCtx->arrayPollfd[a_DataServiceID];
-        }
-    }
-    else // LIBMESSAGE_SRVID_END
-    {
-
-    }
-
-    return pPollfd;
-}
+////*****************************************************************
+////*
+////*****************************************************************
+//sDataThreadCtx_t* getThreadContext(uint32_t a_ThreadCtx)
+//{
+//    sDataThreadCtx_t *pThreadContext = 0;
+//
+//    if( LIBMESSAGE_SRVID_END > a_ThreadCtx  )
+//    {
+//        pThreadContext = &g_DataThread[a_ThreadCtx];
+//    }
+//
+//    return pThreadContext ;
+//}
+////*****************************************************************
+////*
+////*****************************************************************
+//sDataService_t *getDataservice(uint32_t a_ThreadCtx, uint32_t a_DataServiceID)
+//{
+//    sDataService_t * pDataservice  = 0;
+//    sDataThreadCtx_t *pDataThreadCtx = getThreadContext(a_ThreadCtx);
+//
+//    if( ( pDataThreadCtx ) &&  (LIBMESSAGE_SRVID_TIME == a_ThreadCtx))
+//    {
+//        if( LIBMESSAGE_SVCID_TIME_END > a_DataServiceID )
+//        {
+//            pDataservice = &pDataThreadCtx->arrayDataService[a_DataServiceID];
+//        }
+//    }
+//    else if( ( pDataThreadCtx ) &&  (LIBMESSAGE_SRVID_NETWORK == a_ThreadCtx))
+//    {
+//        if( LIBMESSAGE_SVCID_NET_END > a_DataServiceID )
+//        {
+//            pDataservice = &pDataThreadCtx->arrayDataService[a_DataServiceID];
+//        }
+//    }
+//    else // LIBMESSAGE_SRVID_END
+//    {
+//
+//    }
+//
+//    return pDataservice ;
+//}
+////*****************************************************************
+////*
+////*****************************************************************
+//pollfd_t *getPollfd(uint32_t a_ThreadCtx, uint32_t a_DataServiceID)
+//{
+//    pollfd_t * pPollfd = 0;
+//
+//    sDataThreadCtx_t *pDataThreadCtx = getThreadContext(a_ThreadCtx);
+//
+//    if( ( pDataThreadCtx ) &&  (LIBMESSAGE_SRVID_TIME == a_ThreadCtx))
+//    {
+//        if( LIBMESSAGE_SVCID_TIME_END > a_DataServiceID )
+//        {
+//            pPollfd = &pDataThreadCtx->arrayPollfd[a_DataServiceID];
+//        }
+//    }
+//    else if( ( pDataThreadCtx ) &&  (LIBMESSAGE_SRVID_NETWORK == a_ThreadCtx))
+//    {
+//        if( LIBMESSAGE_SVCID_NET_END > a_DataServiceID )
+//        {
+//            pPollfd = &pDataThreadCtx->arrayPollfd[a_DataServiceID];
+//        }
+//    }
+//    else // LIBMESSAGE_SRVID_END
+//    {
+//
+//    }
+//
+//    return pPollfd;
+//}
 
 //****************************************************
 //*
