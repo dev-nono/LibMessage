@@ -11,6 +11,9 @@
 #include <string.h>
 #include <stdio.h>
 
+#include <sys/stat.h>
+#include <unistd.h>
+
 
 #include "libmessage_int.h"
 #include "libmessage.h"
@@ -93,6 +96,21 @@ pollfd_t *getPollfd(uint32_t a_ThreadCtx, uint32_t a_DataServiceID)
     return pPollfd;
 }
 
+//****************************************************
+//*
+//*
+//****************************************************
+const char * getStrDate()
+{
+    int result = 0;
+    static char vBuffer[100] = {0};
+    struct timespec vRes = {0,0};
+
+    result = clock_gettime(CLOCK_MONOTONIC_RAW,&vRes);
+    snprintf(vBuffer,25, "%4ld.%09ld",vRes.tv_sec,vRes.tv_nsec);
+
+    return vBuffer;
+}
 //****************************************************
 //*
 //*
@@ -349,9 +367,6 @@ int libmessage_mkfifo(const char* a_endpointName)
 {
     int result = 0;
 
-
-    result = unlink(a_endpointName);
-
     //*********************************************************
     // create server endpoint
     //*********************************************************
@@ -361,12 +376,12 @@ int libmessage_mkfifo(const char* a_endpointName)
     if( (0 != result ) && (EEXIST != errno) )
     {
         // error
-        printf("libmessage_mkfifo: mkfifo(-%s-) Error=%d %s \n",
-                errno,a_endpointName,strerror(errno));
+        printf("%s libmessage_mkfifo: mkfifo(-%s-) Error=%d %s \n",
+                getStrDate(),a_endpointName,errno,strerror(errno));
     }
     else
     {
-        printf("libmessage_mkfifo :  -%s- OK \n",a_endpointName);
+        printf("%s libmessage_mkfifo :  -%s- OK \n",getStrDate(),a_endpointName);
         result = 0;
     }
 
@@ -374,7 +389,37 @@ int libmessage_mkfifo(const char* a_endpointName)
 }
 //******************************************************
 //
+// returnfd openned
+//                  > stderr(2) : fd open
+//                  -1 : error
 //******************************************************
+int libmessage_openfifo(    const char *a_Fifoname,
+                            uint32_t    a_flag ,
+                            int         *a_pFd)
+{
+    int result = 0;
+
+    // open client endpoint
+    errno = 0;
+    result = open(a_Fifoname, O_NONBLOCK|O_CLOEXEC|a_flag);
+
+    if( -1 == result  )
+    {
+        printf("%s libmessage_openfifo: Error %d %s: open(%s,0x%X)\n",
+                getStrDate(),errno,strerror(errno),a_Fifoname,
+                O_NONBLOCK|O_CLOEXEC|a_flag);
+    }
+    else
+    {
+        printf("%s libmessage_openfifo: open(%s,0x%X) = %d\n",
+                getStrDate(),a_Fifoname, O_NONBLOCK|O_CLOEXEC|a_flag , result);
+        *a_pFd = result;
+        result = 0;
+    }
+
+    return result;
+}
+
 
 //******************************************************
 //

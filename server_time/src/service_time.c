@@ -21,6 +21,9 @@
 #include <errno.h>
  #include <unistd.h>
 
+#include <unistd.h>
+#include <fcntl.h>
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -70,6 +73,7 @@ static int libmessage_cbfcnt_getdate(char* a_pData)
 int srv_getdate()
 {
     int result = 0;
+    int result2 = 0;
     char    vClientName[NAME_MAX] = {0};
     int     fdServer = -1;
     int     fdClient = -1;
@@ -96,8 +100,8 @@ int srv_getdate()
 
         if( -1 == fdServer )
         {
-            printf("Error %d: open(-%s-) %s \n",
-                    errno,SVR_TIME_GETDATE,strerror(errno));
+            printf("%s _1_ open(-%s-) err=%d %s \n",
+                    getStrDate(),SVR_TIME_GETDATE,errno,strerror(errno));
             result = errno;
         }
     }
@@ -110,33 +114,43 @@ int srv_getdate()
         {
             memset(vClientName,0,sizeof(vClientName));
 
-
             vTimeout = -1;
 
             do{
                 vPollfd.fd = fdServer;
                 vPollfd.events = POLLIN | POLLPRI ;
                 vPollfd.revents = 0;
+                //***************************************************
+                //              unlock
+                //***************************************************
+                result = lockf(fdServer, F_ULOCK, 0);
+                    printf("%s _2_ lockf(F_ULOCK) err=%d %s \n",
+                            getStrDate(),errno,strerror(errno));
 
                 errno = 0;
                 result  = poll(&vPollfd, vNfds, vTimeout);
 
-                printf("poll  result=%d: revents=%d 0x%X \n",
-                        result, (int)vPollfd.revents,(int)vPollfd.revents);
+                printf("%s _3_ poll  result=%d: revents=%d 0x%X \n",
+                        getStrDate(),result, (int)vPollfd.revents,(int)vPollfd.revents);
 
-                if( vPollfd.revents & POLLHUP )
+
+                if( ( 0 < result  ) && (vPollfd.revents & POLLIN))
+                {
+                    //ok
+                    break;
+                }
+                else  if( vPollfd.revents & POLLHUP )
                 {
                     close(fdServer);
-
+                    errno = 0;
                     fdServer = open(SVR_TIME_GETDATE,O_NONBLOCK|O_CLOEXEC|O_RDONLY);  // File exists
 
-                    printf("poll POLLHUP %d: open_2(-%s-) %s fdServer=%d\n",
-                            errno,SVR_TIME_GETDATE,strerror(errno),fdServer);
+                    printf("%s _4_ poll POLLHUP errno=%d: open_2(-%s-) %s fdServer=%d\n",
+                            getStrDate(),errno,
+                            SVR_TIME_GETDATE,strerror(errno),fdServer);
 
                     if( -1 == fdServer )
                     {
-                        printf("poll POLLHUP Error %d: open_2(-%s-) %s \n",
-                                errno,SVR_TIME_GETDATE,strerror(errno));
                         result = errno;
                     }
                 }
@@ -144,11 +158,13 @@ int srv_getdate()
                 {
                     break;
                 }
+
             }while(1);
 
             if( 0 > result )
             {
-                printf("Error %d: poll() %s \n",errno,strerror(errno));
+                printf("%s _6_ poll() err=%d  %s \n",
+                        getStrDate(),errno,strerror(errno));
                 result = errno;
             }
             else
@@ -156,30 +172,32 @@ int srv_getdate()
                 memset(vClientName,0,sizeof(vClientName));
                 errno = 0;
                 result = read(fdServer,vClientName,1024);
-static int vsleep = 0; // TODO
-if( vsleep == 0)
-{
-    usleep( 600 * 1000);
-    vsleep = 1;
-}
-else
-{
-    vsleep = 0;
-}
+
                 if( 0 == result )
                 {
-                    printf("Error %d: read(-%s-) size == 0  \n",
-                            errno,vClientName);
+                    printf("%s _7_ read(-%s-) err=%d size == 0  \n",
+                            getStrDate(),vClientName, errno);
                     result = -1;
                 }
                 else if (-1 == result )
                 {
-                    printf("Error %d: read(-%s-) %s \n",
-                            errno,vClientName,strerror(errno));
+                    printf("%s _8_ read(-%s-) Error %d %s \n",
+                            getStrDate(),vClientName,errno,strerror(errno));
                 }
                 else
                 {
-                    printf("server response = %s  size=%d \n",vClientName,result);
+                    printf("%s _9_ read(-%s-) size=%d \n",
+                            getStrDate(),vClientName,result);
+
+                    //***************************************************
+                    //              lock
+                    //***************************************************
+                    result2 = lockf(fdServer, F_LOCK, 0);
+                    if (-1 == result2 )
+                    {
+                        printf("%s _10_ lockf(F_LOCK)fd=%d error=%d %s \n",
+                                getStrDate(),fdServer,errno,strerror(errno));
+                    }
                 }
             }
 
@@ -190,12 +208,12 @@ else
             {
                 // open client endpoint  argv[1] WO
                 errno = 0;
-                fdClient = open(vClientName,O_NONBLOCK|O_CLOEXEC|O_WRONLY);
+                fdClient = open(vClientName,O_NONBLOCK|O_CLOEXEC|O_WRONLY); //
 
                 if( -1 == fdClient  )
                 {
-                    printf("Error %d: open(-%s-) %s \n",
-                            errno,vClientName,strerror(errno));
+                    printf("%s _11_ open(-%s-) err=%d %s \n",
+                            getStrDate(),vClientName,errno,strerror(errno));
                     result = errno;
                 }
             }
@@ -212,15 +230,17 @@ else
 
                 vsize = snprintf(buffer,NAME_MAX,"%lld.%.9ld", (long long)tp.tv_sec,tp.tv_nsec);
                 errno = 0;
+
+
                 result = write(fdClient,buffer,vsize+1);
                 if(-1 ==  result)
                 {
-                    printf("Error %d: write(-%s-) %s \n",
-                            errno,SVR_TIME_GETDATE,strerror(errno));
+                    printf("%s _12_ write(-%s-) err=%d %s \n",
+                            getStrDate(),SVR_TIME_GETDATE,errno,strerror(errno));
                 }
                 else
                 {
-                    printf("write(%s) ok len=%d \n",buffer,vsize+1);
+                    printf("%s _13_ write(%s) ok len=%d \n",getStrDate(),buffer,vsize+1);
                 }
             }
 

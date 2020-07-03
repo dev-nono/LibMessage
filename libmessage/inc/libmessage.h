@@ -11,6 +11,8 @@
 #include <stdint.h>
 #include "libmessage_common.h"
 
+
+
 struct sData_Getdate
 {
     char endpointResponse[NAME_MAX];
@@ -71,9 +73,10 @@ int libmessage_register_service(
 //int libmessage_init();
 //int libmessage_close();
 
-
+const char * getStrDate();
 int libmessage_server_wait();
 int libmessage_mkfifo(const char * a_Fifoname);
+int libmessage_openfifo(const char * a_Fifoname,uint32_t a_flag ,int *a_pFd);
 
 //int libmessage_client_register();
 
