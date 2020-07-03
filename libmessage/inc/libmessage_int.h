@@ -36,6 +36,7 @@ struct sDataService
     char            filenameServer[NAME_MAX+(1)];
     pFuncCB_t       pFuncCB;
     int             id;
+    sem_t           *pSemsvc;
 };
 typedef struct sDataService   sDataService_t;
 

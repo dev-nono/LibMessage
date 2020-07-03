@@ -9,6 +9,8 @@
 #define INC_LIBMESSAGE_H_
 
 #include <stdint.h>
+#include <semaphore.h>
+
 #include "libmessage_common.h"
 
 
@@ -51,7 +53,8 @@ struct sData_Getdate
 int libmessage_getdate( const char *a_Callername,
                         //const char *a_Servername,
         uint32_t         a_ServiceID,
-                        double     *a_Date);
+                        double     *a_Date,
+                        sem_t *a_pSemGedate);
 
 
 //******************************************************

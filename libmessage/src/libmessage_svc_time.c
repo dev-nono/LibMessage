@@ -69,9 +69,11 @@ int libmessage_srvtime_register_getdate()
 int libmessage_getdate( const char *a_Callername,
                         //const char *a_Servername,
         uint32_t         a_ServiceID,
-                        double     *a_Date)
+                        double     *a_Date,
+                        sem_t *a_pSemGedate)
 {
     int result = 0;
+    int result2 = 0;
     char    vClientName[NAME_MAX] = {0};
     int     fdServer = -1;
     char    buffer[1024] = {0};
@@ -109,30 +111,14 @@ int libmessage_getdate( const char *a_Callername,
         result = libmessage_openfifo(SVR_TIME_GETDATE,O_WRONLY,&fdServer);
     }
 
-    //*********************************************************
-    //         reset client
-    //*********************************************************
-//    if( 0 == result )
-//    {
-//        // flush
-////        errno=0;
-////        result = ftruncate(vPollfdClient.fd,0);
-////        printf("flush ftruncate : ret=%d errno=%d %s \n",result,errno,strerror(errno));
-//
-//        memset(buffer,0,sizeof(buffer));
-//        errno=0;
-//        result = read(vPollfdClient.fd,buffer,1024);
-//        printf("%s flush read : ret=%d (%s) errno=%d %s \n",
-//                getStrDate(),result,buffer,errno,strerror(errno));
-//
-//        memset(buffer,0,sizeof(buffer));
-//        errno=0;
-//        result = read(vPollfdClient.fd,buffer,1024);
-//        printf("%s flush read : ret=%d (%s) errno=%d %s \n",
-//                getStrDate(),result,buffer,errno,strerror(errno));
-//
-//        result = 0;
-//    }
+    struct timespec abs_timeout = {0,1e9 / 100  };
+    //***************************************************
+    //              lock
+    //***************************************************
+    result = sem_timedwait(a_pSemGedate,&abs_timeout);
+    printf("%s _1_ sem_wait() result=%d err=%d %s \n",
+            getStrDate(),result,errno,strerror(errno));
+
 
     //*********************************************************
     //          write request
@@ -142,24 +128,30 @@ int libmessage_getdate( const char *a_Callername,
         //send request to server endpoint
         errno = 0;
         result = write(fdServer,vClientName,strlen(vClientName));
+
         if(-1 ==  result)
         {
-            printf("%s _1_ server write(-%s-) Error %d %s \n",
+            printf("%s _2_ server write(-%s-) Error %d %s \n",
                     getStrDate(),SVR_TIME_GETDATE,errno,strerror(errno));
             result = errno;
         }
         else
         {
-            printf("%s _2_ server write(%s) result=%d \n",
+            printf("%s _21_ server write(%s) result=%d \n",
                     getStrDate(),SVR_TIME_GETDATE, result);
             result = 0;
         }
             close(fdServer);
             fdServer = -1;
-    }
+     result = sem_post(a_pSemGedate);
+   }
 
-    printf("%s _3_ type any key to continue 1 \n",getStrDate());
-    //getchar();
+
+    fprintf(stderr,"%s _3_ sem_post resulty=%d err=%d %s\n",
+            getStrDate(),result,errno,strerror(errno));
+
+//    printf("%s _3_ type any key to continue 1 \n",getStrDate());
+//    getchar();
 
     //*********************************************************
     //      waiting receive response : polling
@@ -173,26 +165,28 @@ int libmessage_getdate( const char *a_Callername,
         errno = 0;
         result  = poll(&vPollfdClient, vNfds, vTimeout);
 
-        printf("%s _4_ poll  result=%d: revents=%d 0x%X \n",
+        printf("%s _31_ poll  result=%d: revents=%d 0x%X \n",
                 getStrDate(),result,
                 (int)vPollfdClient.revents,(int)vPollfdClient.revents);
 
 
         if( ( -1 == result ) )
         {
-            printf("%s _4_ poll() errno=%d %s \n",
+            printf("%s _32_ poll() errno=%d %s \n",
                     getStrDate(),errno,strerror(errno));
             result = errno;
         }
         else if( (result ) && ( vPollfdClient.revents & POLLHUP) )
         {
-            printf("%s _5_ poll() result=%d POLLHUP event \n",result);
+            printf("%s _33_ poll() result=%d POLLHUP event \n",
+                    getStrDate(),result);
 
             result = EPIPE;
         }
         else if( 0 == result )
         {
-            printf("%s _6_ poll() Error Timeout %d %s \n",errno,strerror(errno));
+            printf("%s _34_ poll() Error Timeout %d %s \n",
+                    getStrDate(),errno,strerror(errno));
             result = errno;
         }
         else
@@ -213,17 +207,17 @@ int libmessage_getdate( const char *a_Callername,
 
         if( 0 == result )
         {
-            printf("%s _7_ read(-%s-) Error client %d:  result == 0  \n",
+            printf("%s _4_ read(-%s-) Error client %d:  result == 0  \n",
                     getStrDate(),vClientName,result);
         }
         else if (-1 == result )
         {
-            printf("%s _8_ read(-%s-) error client %d %s \n",
+            printf("%s _41_ read(-%s-) error client %d %s \n",
                     getStrDate(),vClientName,errno,strerror(errno));
         }
         else
         {
-            printf("%s _9_ client read server response = %s  size=%d \n",
+            printf("%s _42_ client read server response = %s  size=%d \n",
                     getStrDate(),buffer,result);
         }
     }

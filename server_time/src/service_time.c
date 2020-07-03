@@ -31,11 +31,16 @@
 /* D'après POSIX.1-2001 */
 #include <sys/select.h>
 #include <poll.h>
+#include <semaphore.h>
 
 #include "libmessage_int.h"
 
 
 #include "libmessage.h"
+
+
+ sem_t *g_pSemGedate = 0;
+
 
 static int libmessage_cbfcnt_getdate(char* a_pData)
 {
@@ -107,6 +112,14 @@ int srv_getdate()
     }
 
 
+struct timespec abs_timeout = {3,0  };
+result = sem_wait(g_pSemGedate);
+fprintf(stderr,"sem_wait() result=%d  errno=%d %s\n",
+        result, errno,strerror(errno));
+
+fprintf(stderr,"type to continue ... \n");
+getchar();
+
     if( 0 == result )
     {
 
@@ -116,50 +129,77 @@ int srv_getdate()
 
             vTimeout = -1;
 
-            do{
+            //do{
                 vPollfd.fd = fdServer;
                 vPollfd.events = POLLIN | POLLPRI ;
                 vPollfd.revents = 0;
+                 //***************************************************
+                //              open
+                //***************************************************
+                close(fdServer);
+                errno = 0;
+                fdServer = open(SVR_TIME_GETDATE,O_NONBLOCK|O_CLOEXEC|O_RDONLY);  // File exists
+
+                printf("%s _2_ poll POLLHUP errno=%d: open_2(-%s-) %s fdServer=%d\n",
+                        getStrDate(),errno,
+                        SVR_TIME_GETDATE,strerror(errno),fdServer);
+
                 //***************************************************
                 //              unlock
                 //***************************************************
-                result = lockf(fdServer, F_ULOCK, 0);
-                    printf("%s _2_ lockf(F_ULOCK) err=%d %s \n",
-                            getStrDate(),errno,strerror(errno));
+                ////                result = lockf(fdServer, F_ULOCK, 0);
+                //                    printf("%s _2_ lockf(F_ULOCK) err=%d %s \n",
+                //                            getStrDate(),errno,strerror(errno));
 
+                result = sem_post(g_pSemGedate);
+                //result = sem_wait(g_pSemGedate);
+                printf("%s _3_ sem_post() result=%d err=%d %s \n",
+                        getStrDate(),result,errno,strerror(errno));
+
+                //***************************************************
+                //              poll
+                //***************************************************
                 errno = 0;
                 result  = poll(&vPollfd, vNfds, vTimeout);
 
-                printf("%s _3_ poll  result=%d: revents=%d 0x%X \n",
+                printf("%s _4_ poll  result=%d: revents=%d 0x%X \n",
                         getStrDate(),result, (int)vPollfd.revents,(int)vPollfd.revents);
 
+                //***************************************************
+                //              lock
+                //***************************************************
+                result = sem_wait(g_pSemGedate);
+                printf("%s _5_ sem_wait() result=%d err=%d %s \n",
+                        getStrDate(),result,errno,strerror(errno));
 
-                if( ( 0 < result  ) && (vPollfd.revents & POLLIN))
-                {
-                    //ok
-                    break;
-                }
-                else  if( vPollfd.revents & POLLHUP )
-                {
-                    close(fdServer);
-                    errno = 0;
-                    fdServer = open(SVR_TIME_GETDATE,O_NONBLOCK|O_CLOEXEC|O_RDONLY);  // File exists
 
-                    printf("%s _4_ poll POLLHUP errno=%d: open_2(-%s-) %s fdServer=%d\n",
-                            getStrDate(),errno,
-                            SVR_TIME_GETDATE,strerror(errno),fdServer);
+//                if( ( 0 < result  ) && (vPollfd.revents & POLLIN))
+//                {
+//                    //ok
+//                    result = 0;
+//                    break;
+//                }
+//                else  if( vPollfd.revents & POLLHUP )
+//                {
+//                    close(fdServer);
+//                    errno = 0;
+//                    fdServer = open(SVR_TIME_GETDATE,O_NONBLOCK|O_CLOEXEC|O_RDONLY);  // File exists
+//
+//                    printf("%s _4_ poll POLLHUP errno=%d: open_2(-%s-) %s fdServer=%d\n",
+//                            getStrDate(),errno,
+//                            SVR_TIME_GETDATE,strerror(errno),fdServer);
+//
+//                    if( -1 == fdServer )
+//                    {
+//                        result = errno;
+//                    }
+//                }
+//                else
+//                {
+//                    break;
+//                }
 
-                    if( -1 == fdServer )
-                    {
-                        result = errno;
-                    }
-                }
-                else
-                {
-                    break;
-                }
-
-            }while(1);
+           // }while(1);
 
             if( 0 > result )
             {
@@ -270,8 +310,32 @@ int main(int argc, char *argv[])
 //    result = libmessage_server_wait();
 
 
+    sem_unlink(SVR_TIME_GETDATE_SEM);
+    errno = 0;
+    g_pSemGedate = sem_open(SVR_TIME_GETDATE_SEM,
+            O_CREAT,
+            S_ISVTX|S_IRWXU|S_IRWXG|S_IRWXO,/* 07777 */
+            //S_IRWXU | S_IRWXG |S_IRWXO
+            1);
+    fprintf(stderr,"sem_open(%s) result=0x%p errno=%d %s \n",
+            SVR_TIME_GETDATE_SEM,(void*)g_pSemGedate,
+            errno,strerror(errno));
+
 
     result = srv_getdate();
+
+    //result = libmessage_srvtime_init();
+
+//    if( 0 == result )
+//    {
+//        result = srv_getdate();
+//    }
+//    else
+//    {
+//        // error
+//       fprintf(stderr,"libmessage_srvtime_init Error : result=%d errno=%d %s \n",
+//                result, errno, strerror(errno));
+//    }
 
 //    result = libmessage_srvtime_init();
 //    result = libmessage_server_wait();

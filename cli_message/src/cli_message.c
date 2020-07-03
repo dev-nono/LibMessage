@@ -22,10 +22,11 @@
 /* D'après POSIX.1-2001 */
 #include <sys/select.h>
 #include <poll.h>
-
+#include <semaphore.h>
 
 #include "libmessage.h"
 
+ sem_t *g_pSemGedate = 0;
 
 
 int check_fifo(const char* a_argv1)
@@ -56,35 +57,14 @@ int check_fifo(const char* a_argv1)
     if( 0 == result )
     {
         result = libmessage_openfifo(vClientName,O_RDONLY,&vPollfdClient.fd );
-//        // open client endpoint  argv[1] WO
-//        errno = 0;
-//        vPollfdClient.fd = open(vClientName, O_NONBLOCK|O_CLOEXEC|O_RDONLY);
-//
-//        if( -1 == vPollfdClient.fd  )
-//        {
-//            printf("Error client %d: open(-%s-) %s \n",
-//                    errno,vClientName,strerror(errno));
-//            result = errno;
-//        }
-//        else
-//        {
-//            printf("client open(-%s-) OK fd=%d \n",vClientName,vPollfdClient.fd);
-//        }
     }
-
 
     if( 0 == result )
     {
         do
         {
-
-
-            // res errno
-            // 0   0    continue
-            // -1   11  stop
-
-            printf("type any key to continue \n");
-            getchar();
+//            printf("type any key to continue \n");
+//            getchar();
             if( -1 != fdServer )
                 close(fdServer);
             //*********************************************************
@@ -93,15 +73,6 @@ int check_fifo(const char* a_argv1)
             // open server endpoint  argv[1] WO
             fdServer = -1;
             result = libmessage_openfifo(SVR_TIME_GETDATE,O_WRONLY,&fdServer);
-//            errno = 0;
-//            fdServer = open(SVR_TIME_GETDATE,O_NONBLOCK|O_CLOEXEC|O_WRONLY); //|O_CLOEXEC|O_WRONLY);
-//
-//            if( -1 == fdServer )
-//            {
-//                printf("Error %d: open(-%s-) %s \n",
-//                        errno,SVR_TIME_GETDATE,strerror(errno));
-//                result = errno;
-//            }
 
             //*********************************************************
             //          write request
@@ -222,6 +193,12 @@ int main(int argc, char *argv[])
     if( argc > 1 )
     {
  //       result = check_fifo(argv[1]);
+
+        g_pSemGedate = sem_open(SVR_TIME_GETDATE_SEM,0);
+        fprintf(stderr,"sem_open(%s) result=0x%p errno=%d %s ",
+                SVR_TIME_GETDATE_SEM,(void*)g_pSemGedate,
+                errno,strerror(errno));
+
         do{
             if( ii == 10 )
             {
@@ -234,7 +211,7 @@ int main(int argc, char *argv[])
                 ii++;
             }
 
-            result = libmessage_getdate(argv[1],0,&vDate);
+            result = libmessage_getdate(argv[1],0,&vDate,g_pSemGedate);
 
         }while(1);
     }
@@ -243,7 +220,7 @@ int main(int argc, char *argv[])
         printf("Error no client name ! \n");
     }
 
-    printf("exit result=%d ii=%d%d \n",result, ii);
+    printf("exit result=%d ii=%d \n",result, ii);
 
     return result;
 }
