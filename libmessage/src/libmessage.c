@@ -13,21 +13,49 @@
 
 #include <sys/stat.h>
 #include <unistd.h>
-
+ #include <math.h>
 
 #include "libmessage_int.h"
 #include "libmessage.h"
 
+#define NS_PER_SECOND (1000000000LL)
+
+
+void add_timespec(struct timespec t1, struct timespec t2, struct timespec *td)
+{
+    td->tv_nsec = t2.tv_nsec + t1.tv_nsec;
+    td->tv_sec  = t2.tv_sec + t1.tv_sec;
+    if (td->tv_nsec >= NS_PER_SECOND)
+    {
+        td->tv_nsec -= NS_PER_SECOND;
+        td->tv_sec++;
+    }
+    else if (td->tv_nsec <= -NS_PER_SECOND)
+    {
+        td->tv_nsec += NS_PER_SECOND;
+        td->tv_sec--;
+    }
+}
 
 //************************************************************
-//*
+//* generique function called by client to get data
+//  input data :
+//      .filenameClient
+//      .filenameServer
+//      .pSemsvc
+//  output data :
+//      .databuffer
+//
+//  return: 0 OK
+//          error number
 //************************************************************
-int libmessage_svc_getdata(const sDataService_t a_pDataService)
+int libmessage_svc_getdata(sDataService_t *a_pDataService)
 {
-    int result = 0;
+    int     result = 0;
     char    vClientName[NAME_MAX] = {0};
     int     fdServer = -1;
     char    dataBuffer[PIPE_BUF];
+    int     vSize = 0;
 
     struct pollfd   vPollfdClient = {0};
     nfds_t          vNfds    = 1;
@@ -38,7 +66,8 @@ int libmessage_svc_getdata(const sDataService_t a_pDataService)
     //*********************************************************
     //          create client fifo
     //*********************************************************
-    snprintf(vClientName,NAME_MAX-1,"/tmp/client.%s",a_pDataService.filenameClient);
+    vSize =  NAME_MAX -1 - strlen("/tmp/client.");
+    snprintf(vClientName,vSize,"/tmp/client.%s",a_pDataService->filenameClient);
 
     //result = unlink(vClientName);
 
@@ -59,14 +88,21 @@ int libmessage_svc_getdata(const sDataService_t a_pDataService)
     {
         // open server endpoint  argv[1]
         fdServer = -1;
-        result = libmessage_openfifo(a_pDataService.filenameServer,O_WRONLY,&fdServer);
+        result = libmessage_openfifo(a_pDataService->filenameServer,O_WRONLY,&fdServer);
     }
 
-    struct timespec abs_timeout = {0,1e9 / 100  };
+    struct timespec vdate = {0,0};
+    struct timespec vdatedelta = {0,1e9/1000*100};
+    struct timespec abs_timeout = {0,0};
+
+    clock_gettime(CLOCK_REALTIME, &vdate);
+
+    add_timespec(vdate,vdatedelta,&abs_timeout);
+
     //***************************************************
     //              lock
     //***************************************************
-    result = sem_timedwait(a_pDataService.pSemsvc,&abs_timeout);
+    result = sem_timedwait(a_pDataService->pSemsvc,&abs_timeout);
     printf("%s _1_ sem_wait() result=%d err=%d %s \n",
             getStrDate(),result,errno,strerror(errno));
 
@@ -82,25 +118,28 @@ int libmessage_svc_getdata(const sDataService_t a_pDataService)
 
         if(-1 ==  result)
         {
-            printf("%s _2_ server write(-%s-) Error %d %s \n",
-                    getStrDate(),a_pDataService.filenameServer,errno,strerror(errno));
+            printf("%s %s: _2_ server write(-%s-) Error %d %s \n",
+                    getStrDate(),__FUNCTION__,
+                    a_pDataService->filenameServer,errno,strerror(errno));
             result = errno;
         }
         else
         {
-            printf("%s _21_ server write(%s) result=%d \n",
-                    getStrDate(),a_pDataService.filenameServer, result);
+            printf("%s %s: _21_ server write(%s) result=%d \n",
+                    getStrDate(),__FUNCTION__,
+                    a_pDataService->filenameServer, result);
             result = 0;
         }
             close(fdServer);
             fdServer = -1;
 
-            result = sem_post(a_pDataService.pSemsvc);
+            result = sem_post(a_pDataService->pSemsvc);
    }
 
 
-    fprintf(stderr,"%s _3_ sem_post resulty=%d err=%d %s\n",
-            getStrDate(),result,errno,strerror(errno));
+    fprintf(stderr,"%s %s: _3_ sem_post resulty=%d err=%d %s \n",
+            getStrDate(),__FUNCTION__,
+            result,errno,strerror(errno));
 
 //    printf("%s _3_ type any key to continue 1 \n",getStrDate());
 //    getchar();
@@ -117,28 +156,31 @@ int libmessage_svc_getdata(const sDataService_t a_pDataService)
         errno = 0;
         result  = poll(&vPollfdClient, vNfds, vTimeout);
 
-        printf("%s _31_ poll  result=%d: revents=%d 0x%X \n",
-                getStrDate(),result,
+        printf("%s %s: _31_ poll  result=%d: revents=%d 0x%X \n",
+                getStrDate(),__FUNCTION__,
+                result,
                 (int)vPollfdClient.revents,(int)vPollfdClient.revents);
 
 
         if( ( -1 == result ) )
         {
-            printf("%s _32_ poll() errno=%d %s \n",
-                    getStrDate(),errno,strerror(errno));
+            printf("%s %s: _32_ poll() errno=%d %s \n",
+                    getStrDate(),__FUNCTION__,
+                    errno,strerror(errno));
             result = errno;
         }
         else if( (result ) && ( vPollfdClient.revents & POLLHUP) )
         {
-            printf("%s _33_ poll() result=%d POLLHUP event \n",
-                    getStrDate(),result);
+            printf("%s %s: _33_ poll() result=%d POLLHUP event \n",
+                    getStrDate(),__FUNCTION__,result);
 
             result = EPIPE;
         }
         else if( 0 == result )
         {
-            printf("%s _34_ poll() Error Timeout %d %s \n",
-                    getStrDate(),errno,strerror(errno));
+            printf("%s %s: _34_ poll() Error Timeout %d %s \n",
+                    getStrDate(),__FUNCTION__,
+                    errno,strerror(errno));
             result = errno;
         }
         else
@@ -155,26 +197,29 @@ int libmessage_svc_getdata(const sDataService_t a_pDataService)
 
         memset(dataBuffer,0,sizeof(dataBuffer));
         errno = 0;
-        result = read(vPollfdClient.fd,dataBuffer,1024);
+        result = read(vPollfdClient.fd,dataBuffer,PIPE_BUF);
 
         if( 0 == result )
         {
-            printf("%s _4_ read(-%s-) Error client %d:  result == 0  \n",
-                    getStrDate(),vClientName,result);
+            printf("%s %s: _4_ read(-%s-) Error client %d:  result == 0  \n",
+                    getStrDate(),__FUNCTION__,
+                    vClientName,result);
         }
         else if (-1 == result )
         {
-            printf("%s _41_ read(-%s-) error client %d %s \n",
-                    getStrDate(),vClientName,errno,strerror(errno));
+            printf("%s %s: _41_ read(-%s-) error client %d %s \n",
+                    getStrDate(),__FUNCTION__,
+                    vClientName,errno,strerror(errno));
         }
         else
         {
-            printf("%s _42_ client read server response = %s  size=%d \n",
-                    getStrDate(),dataBuffer,result);
+            printf("%s %s: _42_ client read server response = %s  size=%d \n",
+                    getStrDate(),__FUNCTION__,
+                    dataBuffer,result);
 
-            memcpy(a_pDataService.databuffer,
+            memcpy(a_pDataService->databuffer,
                     dataBuffer,
-                    sizeof(a_pDataService.databuffer));
+                    sizeof(a_pDataService->databuffer));
         }
     }
 
@@ -186,82 +231,6 @@ int libmessage_svc_getdata(const sDataService_t a_pDataService)
 
     return result;
 }
-
-//static sDataThreadCtx_t g_DataThread[LIBMESSAGE_SRVID_END] = {0};
-
-////*****************************************************************
-////*
-////*****************************************************************
-//sDataThreadCtx_t* getThreadContext(uint32_t a_ThreadCtx)
-//{
-//    sDataThreadCtx_t *pThreadContext = 0;
-//
-//    if( LIBMESSAGE_SRVID_END > a_ThreadCtx  )
-//    {
-//        pThreadContext = &g_DataThread[a_ThreadCtx];
-//    }
-//
-//    return pThreadContext ;
-//}
-////*****************************************************************
-////*
-////*****************************************************************
-//sDataService_t *getDataservice(uint32_t a_ThreadCtx, uint32_t a_DataServiceID)
-//{
-//    sDataService_t * pDataservice  = 0;
-//    sDataThreadCtx_t *pDataThreadCtx = getThreadContext(a_ThreadCtx);
-//
-//    if( ( pDataThreadCtx ) &&  (LIBMESSAGE_SRVID_TIME == a_ThreadCtx))
-//    {
-//        if( LIBMESSAGE_SVCID_TIME_END > a_DataServiceID )
-//        {
-//            pDataservice = &pDataThreadCtx->arrayDataService[a_DataServiceID];
-//        }
-//    }
-//    else if( ( pDataThreadCtx ) &&  (LIBMESSAGE_SRVID_NETWORK == a_ThreadCtx))
-//    {
-//        if( LIBMESSAGE_SVCID_NET_END > a_DataServiceID )
-//        {
-//            pDataservice = &pDataThreadCtx->arrayDataService[a_DataServiceID];
-//        }
-//    }
-//    else // LIBMESSAGE_SRVID_END
-//    {
-//
-//    }
-//
-//    return pDataservice ;
-//}
-////*****************************************************************
-////*
-////*****************************************************************
-//pollfd_t *getPollfd(uint32_t a_ThreadCtx, uint32_t a_DataServiceID)
-//{
-//    pollfd_t * pPollfd = 0;
-//
-//    sDataThreadCtx_t *pDataThreadCtx = getThreadContext(a_ThreadCtx);
-//
-//    if( ( pDataThreadCtx ) &&  (LIBMESSAGE_SRVID_TIME == a_ThreadCtx))
-//    {
-//        if( LIBMESSAGE_SVCID_TIME_END > a_DataServiceID )
-//        {
-//            pPollfd = &pDataThreadCtx->arrayPollfd[a_DataServiceID];
-//        }
-//    }
-//    else if( ( pDataThreadCtx ) &&  (LIBMESSAGE_SRVID_NETWORK == a_ThreadCtx))
-//    {
-//        if( LIBMESSAGE_SVCID_NET_END > a_DataServiceID )
-//        {
-//            pPollfd = &pDataThreadCtx->arrayPollfd[a_DataServiceID];
-//        }
-//    }
-//    else // LIBMESSAGE_SRVID_END
-//    {
-//
-//    }
-//
-//    return pPollfd;
-//}
 
 //****************************************************
 //*
@@ -278,254 +247,190 @@ const char * getStrDate()
 
     return vBuffer;
 }
-//****************************************************
-//*
-//*
-//****************************************************
-//int libmessage_register_service(
-//        uint32_t    a_ServerID ,   // LIBMESSAGE_SRVID_TIME  LIBMESSAGE_SRVID_NETWORK
-//        uint32_t    a_ServiceID ,   // SERVER_TIME_ID_GETDATE, SERVER_TIME_ID_SETDATE SERVER_TIME_ID_xxx
-//        pFuncCB_t   a_pFuncCB)
-//
-//{
-//    int result  = 0;
-////    struct mq_attr  vAttr   = {0};
-//
-//    sDataThread_t *pContext = 0;
-//
-//    //***********************************************************************************
-//    // Service time
-//    //***********************************************************************************
-//
-//    if( LIBMESSAGE_SRVID_TIME == a_ServerID )
-//    {
-//        pContext = &g_DataThread[a_ServerID];
-//
-//        if( //(a_ServiceID >= SERVER_TIME_ID_GETDATE ) &&
-//                (a_ServerID <= SERVER_TIME_ID_SIGNAL ))
-//
-//        result = libmessage_register_serviceID(pContext,a_ServiceID,a_pFuncCB);
-//
-//    }// if( LIBMESSAGE_SRVID_TIME == a_ServerID )
-//
-//
-//
-//
-//    return result;
-//}
 
-//************************************************************
-//*
-//************************************************************
-//int libmessage_register_serviceID(
-//        sDataThreadCtx_t *a_pContext,
-//        uint32_t    a_ServiceID ,   // SERVER_TIME_ID_GETDATE, SERVER_TIME_ID_SETDATE SERVER_TIME_ID_xxx
-//        pFuncCB_t   a_pFuncCB )
-//{
-//    int result = 0;
-//    struct mq_attr  vAttr   = {0};
-//
-//    if( 0 != a_pContext )
-//    {
-//        //*****************************************************************
-//        //  add service in list
-//        //*****************************************************************
-//        strncpy(a_pContext->arrayDataService[a_ServiceID].filenameServer,
-//                get_arrayServiceName(a_ServiceID),NAME_MAX) ;
-//
-//        a_pContext->arrayDataService->pFuncCB = a_pFuncCB;
-//    } // if( 0 != pContext )
-//
-//
-//    //*****************************************************************
-//    // open MQ server
-//    //*****************************************************************
-//
-//    vAttr.mq_flags  = O_CLOEXEC;
-//    vAttr.mq_curmsgs = 9;
-//    vAttr.mq_maxmsg = 9;
-//    vAttr.mq_msgsize = 1024;
-//    errno           = 0;
-//    a_pContext->arrayPollfd[a_ServiceID].fd =
-//            mq_open(a_pContext->arrayDataService[a_ServiceID].filenameServer,
-//                    O_CREAT,S_IRWXO | S_IRWXG | S_IRWXU ,&vAttr);
-//
-//    if( a_pContext->arrayPollfd[a_ServiceID].fd  == ( (mqd_t)(-1) ))
-//    {   //  error
-//        result = errno;
-//        printf("libmessage_getdate: mq_open(%s) error %d  %s\n",
-//                a_pContext->arrayDataService[a_ServiceID].filenameServer,
-//                result,strerror(result));
-//    }
-//    else
-//    {
-//        printf("libmessage_getdate: mq_open(%s) OK\n",
-//                a_pContext->arrayDataService[a_ServiceID].filenameServer);
-//    }
-//
-//
-//    a_pContext->nbItem++;
-//
-//    return result;
-//}
+
+
 //****************************************************
 //*
 //*
 //****************************************************
-//static int libmessage_sendEvent(sDataThreadCtx_t *a_pContext, uint32_t a_IndexService )
-//{
-//    int     result      = 0;
-//    int     vLenReceive = 0;
-//    char    vBuffer[LIBMESSAGE_MAX_BUFFER] = {0};
-//
-//    vLenReceive =  mq_receive(a_pContext->arrayPollfd[a_IndexService].fd,
-//            vBuffer,
-//            sizeof(vBuffer),
-//            0U);
-//
-//    result = a_pContext->arrayDataService[a_IndexService].pFuncCB(vBuffer);
-//
-//
-//    printf("libmessage_sendEvent: vLenReceive=%d data=%s",vLenReceive,vBuffer);
-//
-//    return result;
-//}
-//****************************************************
-//*
-//*
-//****************************************************
-static void * libmessage_threadFunction(void * a_pArg)
+void * libmessage_threadFunction_srv(void * a_pArg)
 {
     int             result  = 0;
     sDataThreadCtx_t   *pContext = (sDataThreadCtx_t*)a_pArg;
-    int ii = 0;
 
-//    do
-//    {
-//        // wait condition variable
-//        // si list vide , wait condition variable
-//        // sinon epoll sur MQ ouvert
+    char    vClientName[NAME_MAX] = {0};
+    int     fdServer = -1;
+    int     fdClient = -1;
+    char    buffer[PIPE_BUF] = {0};
+    struct pollfd   vPollfd = {0};
+    nfds_t          vNfds    = 1;
+    int             vTimeout = -1;
+    int             sizebuffer = 0;
+
+    result = libmessage_mkfifo(pContext->dataService.filenameServer);
+    if( 0 != result )
+    {
+        fprintf(stderr,"%s %s : error libmessage_mkfifo(%s)",
+                getStrDate(),__FUNCTION__,pContext->dataService.filenameServer);
+    }
+
+    //******************************************************
+    //  lock fifo server
+    //******************************************************
+    result = sem_wait(pContext->dataService.pSemsvc);
+    printf("%s %s : _1_ sem_wait() result=%d err=%d %s \n",
+            getStrDate(),__FUNCTION__,result,errno,strerror(errno));
+//
+//    //******************************************************
+//    //  release semaphore
+//    //******************************************************
+//    result = sem_post(pContext->dataService.pSemsvc);
 //
 //
-//        //libmessage_m
-//        printf("libmessage_threadFunction: poll before \n");
-//        result = poll(pContext->arrayPollfd, pContext->nbItem, -1);
-//        printf("libmessage_threadFunction: poll result=%d \n",result);
-//
-//        if ( result > 0 )
-//        {
-//            printf("libmessage_threadFunction: poll result > 0 \n");
-//
-//            for( ii = 0; ii < pContext->nbItem; ii ++ )
-//            {
-//                if(0 != pContext->arrayPollfd[ii].revents)
-//                {
-//                    printf("libmessage_threadFunction: revents != 0 \n");
-//                    result = libmessage_sendEvent(pContext,ii);
-//                }
-//            }
-////            result = libmessage_pollCheck();
-//            printf("libmessage_threadFunction: result = libmessage_sendEvent =%d \n",result);
-//        }
-//        else if (0 == result )
-//        {
-//            // timeout
-//            printf("libmessage_threadFunction: timeout result == 0 \n");
-//       }
-//        else // error
-//        {
-//            printf("libmessage_threadFunction: timeout result == error \n");
-//
-//        }
-//        printf("libmessage_threadFunction: before while \n");
-//
-//    }while(1);
+
+    do
+    {
+        result = 0;
+
+        memset(vClientName,0,sizeof(vClientName));
+        // open server endpoint
+
+        //***************************************************
+        //              open fifo server
+        //***************************************************
+
+        close(fdServer);
+
+        errno = 0;
+        fdServer = open(pContext->dataService.filenameServer,O_NONBLOCK|O_CLOEXEC|O_RDONLY);
+
+        if( -1 == fdServer )
+        {
+            printf("%s %s:_2_ open(%s) err=%d %s \n",
+                    getStrDate(),__FUNCTION__,
+                    SVCNAME_TIME_GETDATE,errno,strerror(errno));
+            result = errno;
+        }
+
+        if( 0 == result )
+        {
+            //***************************************************
+            //              unlock
+            //***************************************************
+            result = sem_post(pContext->dataService.pSemsvc);
+            printf("%s %s: _3_ sem_post() result=%d err=%d %s \n",
+                    getStrDate(),__FUNCTION__,result,errno,strerror(errno));
+        }
+
+        if( 0 == result )
+        {
+            //***************************************************
+            //              poll
+            //***************************************************
+            vPollfd.fd = fdServer;
+            vPollfd.events = POLLIN | POLLPRI ;
+            vPollfd.revents = 0;
+            errno = 0;
+
+            result  = poll(&vPollfd, vNfds, vTimeout);
+
+            printf("%s %s: _4_ poll  result=%d: revents=%d 0x%X \n",
+                    getStrDate(),__FUNCTION__,result, (int)vPollfd.revents,(int)vPollfd.revents);
+        }
+        if( 0 < result )
+        {
+            //******************************************************
+            //  lock fifo server
+            //******************************************************
+            result = sem_wait(pContext->dataService.pSemsvc);
+            printf("%s %s : _5_ sem_wait() result=%d err=%d %s \n",
+                    getStrDate(),__FUNCTION__,result,errno,strerror(errno));
+        //
+
+        }
+        if( 0 == result )
+        {
+            //***************************************************
+            // read client request
+            // client send filename for response
+            //***************************************************
+            memset(vClientName,0,sizeof(vClientName));
+            errno = 0;
+            result = read(fdServer,vClientName,1024);
 
 
-    return 0;
+            if( 0 == result )
+            {
+                printf("%s %s: _6_ read(-%s-) err=%d size == 0  \n",
+                        getStrDate(),__FUNCTION__,
+                        vClientName, errno);
+                result = -1;
+            }
+            else if (-1 == result )
+            {
+                printf("%s %s : _7_ read(-%s-) Error %d %s \n",
+                        getStrDate(),__FUNCTION__,
+                        vClientName,errno,strerror(errno));
+            }
+            else
+            {
+                printf("%s %s _8_ read(-%s-) size=%d \n",
+                        getStrDate(),__FUNCTION__,
+                        vClientName,result);
+                result = 0;
+            }
+        }
+        //*********************************************************
+        //          open client endpoint
+        //*********************************************************
+        if( 0 == result )
+        {
+            errno = 0;
+            fdClient = open(vClientName,O_NONBLOCK|O_CLOEXEC|O_WRONLY); //
+
+            if( -1 == fdClient  )
+            {
+                printf("%s %s _9_ open(-%s-) err=%d %s \n",
+                        getStrDate(),__FUNCTION__,
+                        vClientName,errno,strerror(errno));
+                result = errno;
+            }
+        }
+
+        //*********************************************************
+        //          call callback
+        //*********************************************************
+        if( 0 == result )
+        {
+            sizebuffer = pContext->dataService.pFunctCB(buffer);
+        }
+        //*********************************************************
+        //          write response
+        //*********************************************************
+        if( 0 == result )
+        {
+            result = write(fdClient,buffer,sizebuffer);
+            if(-1 ==  result)
+            {
+                printf("%s %s: _10_ write(-%s-) err=%d %s \n",
+                        getStrDate(),__FUNCTION__,
+                        SVCNAME_TIME_GETDATE,errno,strerror(errno));
+            }
+            else
+            {
+                printf("%s %s:_11_ write(%s) ok len=%d \n",
+                        getStrDate(),__FUNCTION__,
+                        buffer,sizebuffer);
+            }
+
+        }
+
+    }while(1);
+
+    return (void*)0;
 }
 
-
-//****************************************************
-//*
-//*
-//****************************************************
-//int libmessage_init()
-//{
-//    int result = 0;
-//
-//    //*****************************
-//    // create new tread for listening incomming messages
-//    //*****************************
-//    result =  pthread_create(   &gDataThread.ThreadID,
-//                                NULL,
-//                                &libmessage_threadFunction,
-//                                0);
-//
-//
-//    return result;
-//}
-//****************************************************
-//*
-//*
-//****************************************************
-//int libmessage_close()
-//{
-//    int result = 0;
-//
-//
-//    result = pthread_cancel(gDataThread.ThreadID);
-//
-//
-//    return result;
-//}
-
-//****************************************************
-//*
-//*
-//****************************************************
-//int libmessage_server_wait()
-//{
-//    int result = 0;
-//
-//    //*****************************
-//    // LIBMESSAGE_ID_TIME
-//    //*****************************
-//    result =  pthread_create(   &(g_DataThread[LIBMESSAGE_SRVID_TIME].pthreadID),
-//                                NULL,
-//                                &libmessage_threadFunction,
-//                                (void*)&g_DataThread[LIBMESSAGE_SRVID_TIME]);
-//
-//    result = pthread_join(g_DataThread[LIBMESSAGE_SRVID_TIME].pthreadID,0);
-//
-//
-//    //*****************************
-//    // LIBMESSAGE_ID_END
-//    //*****************************
-//
-//    // wait on end of thread
-//    return result;
-//}
-//****************************************************
-//*
-//*
-//****************************************************
-//int libmessage_client_register()
-//{
-//    int result = 0;
-//
-//    return result;
-//}
-////****************************************************
-////*
-////*
-////****************************************************
-//int libmessage_pollCheck()
-//{
-//    int result = 0;
-//
-//    return result;
-//}
 
 //******************************************************
 //
@@ -533,6 +438,8 @@ static void * libmessage_threadFunction(void * a_pArg)
 int libmessage_mkfifo(const char* a_endpointName)
 {
     int result = 0;
+
+    unlink(a_endpointName);
 
     //*********************************************************
     // create server endpoint
@@ -543,12 +450,14 @@ int libmessage_mkfifo(const char* a_endpointName)
     if( (0 != result ) && (EEXIST != errno) )
     {
         // error
-        printf("%s libmessage_mkfifo: mkfifo(-%s-) Error=%d %s \n",
-                getStrDate(),a_endpointName,errno,strerror(errno));
+        fprintf(stderr,"%s %s: mkfifo(-%s-) Error=%d %s \n",
+                getStrDate(),__FUNCTION__,
+                a_endpointName,errno,strerror(errno));
     }
     else
     {
-        printf("%s libmessage_mkfifo :  -%s- OK \n",getStrDate(),a_endpointName);
+        fprintf(stderr,"%s %s : mkfifo(%s) OK \n",
+                getStrDate(),__FUNCTION__,a_endpointName);
         result = 0;
     }
 
@@ -572,14 +481,16 @@ int libmessage_openfifo(    const char *a_Fifoname,
 
     if( -1 == result  )
     {
-        printf("%s libmessage_openfifo: Error %d %s: open(%s,0x%X)\n",
-                getStrDate(),errno,strerror(errno),a_Fifoname,
-                O_NONBLOCK|O_CLOEXEC|a_flag);
+        fprintf(stderr,"%s %s:Error open(%s,0x%X) %d %s\n",
+                getStrDate(),__FUNCTION__,
+                a_Fifoname, O_NONBLOCK|O_CLOEXEC|a_flag,
+                errno,strerror(errno));
     }
     else
     {
-        printf("%s libmessage_openfifo: open(%s,0x%X) = %d\n",
-                getStrDate(),a_Fifoname, O_NONBLOCK|O_CLOEXEC|a_flag , result);
+        fprintf(stderr,"%s %s: open(%s,0x%X) = %d \n",
+                getStrDate(),__FUNCTION__,
+                a_Fifoname, O_NONBLOCK|O_CLOEXEC|a_flag,result);
         *a_pFd = result;
         result = 0;
     }
@@ -596,28 +507,5 @@ int libmessage_openfifo(    const char *a_Fifoname,
 //
 //******************************************************
 
-//******************************************************
-//  server time
-//******************************************************
-int libmessage_srvtime_init()
-{
-    int result = 0;
-
-    //***************************************************
-    // register all services
-    //***************************************************
-
-    result = libmessage_srvtime_register_getdate();
-//    result = libmessage_srvtime_svc_setdate();
-//    result = libmessage_srvtime_svc_signal();
-
-    //***************************************************
-    // create thread listener
-    //***************************************************
-
-
-
-    return result;
-}
 
 

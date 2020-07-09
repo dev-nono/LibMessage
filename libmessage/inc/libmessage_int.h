@@ -17,17 +17,21 @@
 
 #include "libmessage_common.h"
 
-#define LIBMESSAGE_MAX_BUFFER   (1024U)
 #define LIBMESSAGE_MAX_ARRAY    (100U)
+#define LIBMESSAGE_MAX_BUFFER   (1024U)
 
 //******************************************************
 //  services "server_time"
 //******************************************************
-#define SRVNAME_TIME             "/srv_time"
-#define SVCNAME_TIME_GETDATE     SRVNAME_TIME".getdate"
-#define SVCNAME_TIME_SETDATE     SRVNAME_TIME".setdate"
-#define SVCNAME_TIME_SIGNAL      SRVNAME_TIME".signal"
+#define SRVNAME_TIME             "/tmp/srvtime"
+#define SVCNAME_TIME_GETDATE     SRVNAME_TIME"_getdate"
+#define SVCNAME_TIME_SETDATE     SRVNAME_TIME"_setdate"
+#define SVCNAME_TIME_SIGNAL      SRVNAME_TIME"_signal"
 #define SVCNAME_TIME_END              ""
+
+#define SVR_TIME            "srvtime"
+#define SVC_GETDATE         "getdate"
+#define SVR_TIME_GETDATE_SEM    SVR_TIME"."SVC_GETDATE
 
 const char* get_arrayServiceName(uint32_t a_ServiceID );
 
@@ -35,7 +39,7 @@ struct sDataService
 {
     char            filenameClient[NAME_MAX+(1)];
     char            filenameServer[NAME_MAX+(1)];
-    pFuncCB_t       pFuncCB;
+    pFunctCB_t       pFunctCB;
     int             id;
     sem_t           *pSemsvc;
 
@@ -49,17 +53,19 @@ typedef struct pollfd pollfd_t;
 struct sDataThreadCtx
 {
     pthread_t       pthreadID;
-    pthread_attr_t  Attr;
+    pthread_attr_t  attr;
+    sDataService_t  dataService;
 
     pid_t           pid;
 
-    pollfd_t        arrayPollfd[LIBMESSAGE_MAX_ARRAY];
-    sDataService_t  arrayDataService[LIBMESSAGE_MAX_ARRAY];
-    int             nbItem;
+//    pollfd_t        arrayPollfd[LIBMESSAGE_MAX_ARRAY];
+//    sDataService_t  arrayDataService[LIBMESSAGE_MAX_ARRAY];
+//    int             nbItem;
+
 };
 typedef struct sDataThreadCtx sDataThreadCtx_t;
 
-
+int libmessage_svc_getdata(sDataService_t *a_pDataService);
 
 int libmessage_mkfifo(const char * a_Fifoname);
 int libmessage_openfifo(const char * a_Fifoname,uint32_t a_flag ,int *a_pFd);

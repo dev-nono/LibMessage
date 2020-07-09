@@ -26,6 +26,7 @@
 #include <stdio.h>
 #include <errno.h>
 
+#include "libmessage_svc_time.h"
 #include "libmessage.h"
 
 // sem_t *g_pSemGedate = 0;

@@ -10,11 +10,10 @@
 
 #include <stdint.h>
 
-//******************************************************
-//  service time client
-//******************************************************
-int libmessage_getdate( const char *a_Callername,
-                        double     *a_Date);
+
+void * libmessage_threadFunction_srv(void * a_pArg);
+
+
 
 //******************************************************
 //  service time server

@@ -10,12 +10,10 @@
 
 #include <fcntl.h>           /* Pour les constantes O_* */
 #include <sys/stat.h>        /* Pour les constantes des modes */
-#include <mqueue.h>
 
 #include <errno.h>
 #include <string.h>
-#include <poll.h>
-
+#include <pthread.h>
 
 // #define _GNU_SOURCE
 #include <unistd.h>
@@ -23,19 +21,24 @@
 #include <sys/types.h>
 #include <limits.h>
 
+#include  "libmessage_svc_time.h"
 #include "libmessage_common.h"
 #include "libmessage_int.h"
 #include "libmessage.h"
 
+static sDataThreadCtx_t g_ThdCtxGetdata = {0};
+//static sDataThreadCtx_t g_ThdCtxSetdata = {0};
+//static sDataThreadCtx_t g_ThdCtxSignaldata = {0};
 
 
-static char g_arrayServiceName[][NAME_MAX] =
-{
-        {SVCNAME_TIME_GETDATE},
-        {SVCNAME_TIME_SETDATE},
-        {SVCNAME_TIME_SIGNAL},
-        {SVCNAME_TIME_END}
-};
+
+//static char g_arrayServiceName[][NAME_MAX] =
+//{
+//        {SVCNAME_TIME_GETDATE},
+//        {SVCNAME_TIME_SETDATE},
+//        {SVCNAME_TIME_SIGNAL},
+//        {SVCNAME_TIME_END}
+//};
 
 
 //const char* get_arrayServiceName(uint32_t a_ServiceID )
@@ -49,25 +52,98 @@ static char g_arrayServiceName[][NAME_MAX] =
 //
 //    return serviceName;
 //}
-
 //************************************************************
 //*
 //************************************************************
-int libmessage_srvtime_register_getdate()
+int libmessage_srvtime_wait()
 {
     int result = 0;
 
-    result = libmessage_mkfifo(SVCNAME_TIME_GETDATE);
+    //broadcast signal start
 
+    // joint thread 1
 
+    pthread_join(g_ThdCtxGetdata.pthreadID,0);
+    // joint thread 2
+    // joint thread 3
 
 
     return result;
 }
 //************************************************************
-//* return:
-//      EXIT_SUCCESS    0
-//      EINVAL          22  Invalid argument
+//*
+//************************************************************
+int libmessage_srvtime_register_getdate(pFunctCB_t a_pFunctCB)
+{
+    int result = 0;
+
+
+    memset(&g_ThdCtxGetdata,0,sizeof(g_ThdCtxGetdata));
+
+    //*****************************
+    // prepare data thread
+    //*****************************
+    g_ThdCtxGetdata.dataService.pFunctCB = a_pFunctCB;
+
+    strncpy(g_ThdCtxGetdata.dataService.filenameServer,
+            SVCNAME_TIME_GETDATE,
+            sizeof(g_ThdCtxGetdata.dataService.filenameServer)-1);
+
+    //**************************************************
+    //*  create semaphore
+    //**************************************************
+    if( 0 == result )
+    {
+        errno = 0;
+        result = sem_unlink(SVR_TIME_GETDATE_SEM);
+        if( 0 == result )
+        {
+            fprintf(stderr,"%s %s: sem_unlink(%s) result=%d errno=%d %s \n",
+                    getStrDate(),__FUNCTION__, SVR_TIME_GETDATE_SEM,
+                    result,errno,strerror(errno));
+        }
+
+        result = 0;
+        errno = 0;
+        g_ThdCtxGetdata.dataService.pSemsvc = sem_open(SVR_TIME_GETDATE_SEM,
+                O_CREAT,S_IRWXU,1U);
+        if( SEM_FAILED == g_ThdCtxGetdata.dataService.pSemsvc)
+        {
+            fprintf(stderr,"%s %s: sem_open(%s) result=0x%p errno=%d %s \n",
+                    getStrDate(),__FUNCTION__,
+                    SVR_TIME_GETDATE_SEM,
+                    (void*)g_ThdCtxGetdata.dataService.pSemsvc,
+                    errno,strerror(errno));
+            result = errno;
+        }
+    }
+
+    if( 0 == result )
+    {
+       //*****************************
+        // create new tread for listening incomming messages
+        //*****************************
+        errno = 0;
+        result =  pthread_create(&g_ThdCtxGetdata.pthreadID,
+                NULL,
+                &libmessage_threadFunction_srv,
+                (void*)&g_ThdCtxGetdata);
+
+        if( 0 != result )
+        {
+            fprintf(stderr,"%s %s : pthread_create() error =%d %s \n",
+                    getStrDate(),__FUNCTION__ ,
+                    result,strerror(result));
+        }
+    }
+
+    return result;
+}
+//************************************************************
+//  client side
+//      return:
+//          EXIT_SUCCESS    0
+//          EINVAL          22  Invalid argument
 //************************************************************
 int libmessage_getdate( const char *a_Callername,
                         double     *a_Date)
@@ -83,19 +159,23 @@ int libmessage_getdate( const char *a_Callername,
 
     if( EXIT_SUCCESS == result )
     {
-        strncpy(vDataService.filenameClient,
-                a_Callername,
-                sizeof(vDataService.filenameClient)-1);
+        strcpy(vDataService.filenameClient,a_Callername);
 
-        strncpy(vDataService.filenameServer,
-                SVCNAME_TIME_GETDATE,
-                sizeof(vDataService.filenameServer)-1);
+        strcpy(vDataService.filenameServer,SVCNAME_TIME_GETDATE);
+//        strncpy(vDataService.filenameClient,
+//                a_Callername,
+//                sizeof(vDataService.filenameClient)-1);
+//
+//        strncpy(vDataService.filenameServer,
+//                SVCNAME_TIME_GETDATE,
+//                sizeof(vDataService.filenameServer)-1);
 
 
         errno = 0;
         vDataService.pSemsvc = sem_open(SVR_TIME_GETDATE_SEM,0);
-        fprintf(stderr,"sem_open(%s) result=0x%p errno=%d %s ",
-                SVR_TIME_GETDATE_SEM,(void*)vDataService.pSemsvc,
+        fprintf(stderr,"%s %s: sem_open(%s) result=0x%p errno=%d %s \n",
+                getStrDate(),__FUNCTION__,SVCNAME_TIME_GETDATE,
+                (void*)vDataService.pSemsvc,
                 errno,strerror(errno));
 
         if( SEM_FAILED == vDataService.pSemsvc)
@@ -103,7 +183,7 @@ int libmessage_getdate( const char *a_Callername,
             result = errno;
         }
 
-        vDataService.pFuncCB = 0;
+        vDataService.pFunctCB = 0;
     }
 
     if( EXIT_SUCCESS == result )

@@ -10,13 +10,12 @@
 
 #include <stdlib.h> // EXIT_SUCCESS;
 
-#define SVR_TIME            "srvtime"
-#define SVC_GETDATE         "getdate"
-#define SVR_TIME_GETDATE    "/tmp/"SVR_TIME"."SVC_GETDATE
+//#define SVR_TIME            "srvtime"
+//#define SVC_GETDATE         "getdate"
+////#define SVR_TIME_GETDATE    "/tmp/"SVR_TIME"."SVC_GETDATE
 
-#define SVR_TIME_GETDATE_SEM "/sem_"SVR_TIME"_"SVC_GETDATE
 
-typedef int (*pFuncCB_t)(char*);
+typedef int (*pFunctCB_t)(char*);
 
 
 

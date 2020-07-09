@@ -34,32 +34,46 @@
 #include <semaphore.h>
 
 #include "libmessage_int.h"
-
-
 #include "libmessage.h"
+
+#include "libmessage_svc_time.h"
 
 
  sem_t *g_pSemGedate = 0;
 
 
+ static int libmessage_cbfcnt_signaldate(char* a_pData)
+ {
+     int result = 0;
+
+     return  result;
+ }
+
+ static int libmessage_cbfcnt_setdate(char* a_pData)
+ {
+     int result = 0;
+
+     return  result;
+ }
+
 static int libmessage_cbfcnt_getdate(char* a_pData)
 {
     int result = 0;
-    char outstr[200];
-     time_t t;
-     struct tm *tmp;
+    //char outstr[PIPE_BUF] = {0};
 
-     t = time(NULL);
-     tmp = localtime(&t);
+    struct timespec tp = {0};
 
-     strftime(outstr, sizeof(outstr), "%a, %d %b %Y %T %z", tmp) ;
+    clock_gettime(CLOCK_MONOTONIC_RAW, &tp);
+    int vsize = 0;
+
+    vsize = snprintf(a_pData,PIPE_BUF-10,"%lld.%.9ld",
+            (long long)tp.tv_sec,tp.tv_nsec);
+
+     fprintf(stderr,"%s %s: date=%s len=%d\n",
+             (char*)getStrDate(),__FUNCTION__,a_pData,vsize);
 
 
-     strncpy(a_pData,outstr,LIBMESSAGE_MAX_BUFFER-1);
-
-    printf("libmessage_cbfcnt_getdate: date=%s\n",a_pData);
-
-    return result;
+     return vsize;
 }
 //static int libmessage_cbfcnt_setdate(void* a_pData)
 //{
@@ -82,7 +96,7 @@ int srv_getdate()
     char    vClientName[NAME_MAX] = {0};
     int     fdServer = -1;
     int     fdClient = -1;
-    char    buffer[1024] = {0};
+    char    buffer[PIPE_BUF] = {0};
     struct pollfd   vPollfd = {0};
     nfds_t          vNfds    = 1;
     int             vTimeout = -1;
@@ -90,7 +104,7 @@ int srv_getdate()
     int ii = 0;
 
 
-    result = libmessage_mkfifo(SVR_TIME_GETDATE);
+    result = libmessage_mkfifo(SVCNAME_TIME_GETDATE);
 
     //*********************************************************
     //          open server endpoint
@@ -100,12 +114,12 @@ int srv_getdate()
     {
         // open server endpoint
         errno = 0;
-        fdServer = open(SVR_TIME_GETDATE,O_NONBLOCK|O_CLOEXEC|O_RDONLY);
+        fdServer = open(SVCNAME_TIME_GETDATE,O_NONBLOCK|O_CLOEXEC|O_RDONLY);
 
         if( -1 == fdServer )
         {
             printf("%s _1_ open(-%s-) err=%d %s \n",
-                    getStrDate(),SVR_TIME_GETDATE,errno,strerror(errno));
+                    getStrDate(),SVCNAME_TIME_GETDATE,errno,strerror(errno));
             result = errno;
         }
     }
@@ -129,19 +143,16 @@ getchar();
             vTimeout = -1;
 
             //do{
-                vPollfd.fd = fdServer;
-                vPollfd.events = POLLIN | POLLPRI ;
-                vPollfd.revents = 0;
                  //***************************************************
                 //              open
                 //***************************************************
                 close(fdServer);
                 errno = 0;
-                fdServer = open(SVR_TIME_GETDATE,O_NONBLOCK|O_CLOEXEC|O_RDONLY);  // File exists
+                fdServer = open(SVCNAME_TIME_GETDATE,O_NONBLOCK|O_CLOEXEC|O_RDONLY);  // File exists
 
-                printf("%s _2_ poll POLLHUP errno=%d: open_2(-%s-) %s fdServer=%d\n",
+                fprintf(stderr,"%s _2_ poll POLLHUP errno=%d: open_2(-%s-) %s fdServer=%d\n",
                         getStrDate(),errno,
-                        SVR_TIME_GETDATE,strerror(errno),fdServer);
+                        SVCNAME_TIME_GETDATE,strerror(errno),fdServer);
 
                 //***************************************************
                 //              unlock
@@ -158,11 +169,16 @@ getchar();
                 //***************************************************
                 //              poll
                 //***************************************************
+                vPollfd.fd = fdServer;
+                vPollfd.events = POLLIN | POLLPRI ;
+                vPollfd.revents = 0;
                 errno = 0;
+
                 result  = poll(&vPollfd, vNfds, vTimeout);
 
                 printf("%s _4_ poll  result=%d: revents=%d 0x%X \n",
-                        getStrDate(),result, (int)vPollfd.revents,(int)vPollfd.revents);
+                        getStrDate(),result,
+                        (int)vPollfd.revents,(int)vPollfd.revents);
 
                 //***************************************************
                 //              lock
@@ -182,11 +198,11 @@ getchar();
 //                {
 //                    close(fdServer);
 //                    errno = 0;
-//                    fdServer = open(SVR_TIME_GETDATE,O_NONBLOCK|O_CLOEXEC|O_RDONLY);  // File exists
+//                    fdServer = open(SVCNAME_TIME_GETDATE,O_NONBLOCK|O_CLOEXEC|O_RDONLY);  // File exists
 //
 //                    printf("%s _4_ poll POLLHUP errno=%d: open_2(-%s-) %s fdServer=%d\n",
 //                            getStrDate(),errno,
-//                            SVR_TIME_GETDATE,strerror(errno),fdServer);
+//                            SVCNAME_TIME_GETDATE,strerror(errno),fdServer);
 //
 //                    if( -1 == fdServer )
 //                    {
@@ -208,6 +224,8 @@ getchar();
             }
             else
             {
+                // read client request
+                // client send filename for response
                 memset(vClientName,0,sizeof(vClientName));
                 errno = 0;
                 result = read(fdServer,vClientName,1024);
@@ -275,7 +293,7 @@ getchar();
                 if(-1 ==  result)
                 {
                     printf("%s _12_ write(-%s-) err=%d %s \n",
-                            getStrDate(),SVR_TIME_GETDATE,errno,strerror(errno));
+                            getStrDate(),SVCNAME_TIME_GETDATE,errno,strerror(errno));
                 }
                 else
                 {
@@ -297,49 +315,17 @@ int main(int argc, char *argv[])
 {
     int result = 0;
 
-
-//    result =  libmessage_register_service(
-//            LIBMESSAGE_SRVID_TIME,
-//            SERVER_TIME_ID_GETDATE ,
-//            &libmessage_cbfcnt_getdate);
-
-//    result = libmessage_register_service_time( SERVER_TIME_SETDATE, libmessage_cbfcnt_setdate);
-//    result = libmessage_register_service_time( SERVER_TIME_SIGNAL,  libmessage_cbfcnt_signal,     libmessage_cbfcnt_signal);
-
-//    result = libmessage_server_wait();
-
-
-//    sem_unlink(SVR_TIME_GETDATE_SEM);
-//    errno = 0;
-//    g_pSemGedate = sem_open(SVR_TIME_GETDATE_SEM,
-//            O_CREAT,
-//            S_ISVTX|S_IRWXU|S_IRWXG|S_IRWXO,/* 07777 */
-//            //S_IRWXU | S_IRWXG |S_IRWXO
-//            1);
-//    fprintf(stderr,"sem_open(%s) result=0x%p errno=%d %s \n",
-//            SVR_TIME_GETDATE_SEM,(void*)g_pSemGedate,
-//            errno,strerror(errno));
-//
-//
 //    result = srv_getdate();
 //
 //
 //
-    result = libmessage_srvtime_init();
+    result = libmessage_srvtime_register_getdate(&libmessage_cbfcnt_getdate);
+//    result = libmessage_srvtime_register_setdate(&libmessage_cbfcnt_setdate);
+//    result = libmessage_srvtime_register_signaldate(&libmessage_cbfcnt_signaldate);
 
-//    if( 0 == result )
-//    {
-//        result = srv_getdate();
-//    }
-//    else
-//    {
-//        // error
-//       fprintf(stderr,"libmessage_srvtime_init Error : result=%d errno=%d %s \n",
-//                result, errno, strerror(errno));
-//    }
 
-//    result = libmessage_srvtime_init();
-//    result = libmessage_server_wait();
+    result = libmessage_srvtime_wait();
+
 
     return result;
 }
