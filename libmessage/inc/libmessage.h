@@ -8,25 +8,16 @@
 #ifndef INC_LIBMESSAGE_H_
 #define INC_LIBMESSAGE_H_
 
-#include <stdint.h>
+#define _IN_
+#define _OUT_
+#define _INOUT_
 
-
-void * libmessage_threadFunction_srv(void * a_pArg);
-
-
-
-//******************************************************
-//  service time server
-//******************************************************
+typedef int (*libmessage_pFunctCB_t)(char*);
 
 //******************************************************
 //  generic function
 //******************************************************
 const char * getStrDate();
-
-int libmessage_server_wait();
-
-//int libmessage_client_register();
 
 
 #endif /* INC_LIBMESSAGE_H_ */

@@ -15,27 +15,10 @@
 #include <unistd.h>
  #include <math.h>
 
+#include <utils.h>
 #include "libmessage_int.h"
 #include "libmessage.h"
 
-#define NS_PER_SECOND (1000000000LL)
-
-
-void add_timespec(struct timespec t1, struct timespec t2, struct timespec *td)
-{
-    td->tv_nsec = t2.tv_nsec + t1.tv_nsec;
-    td->tv_sec  = t2.tv_sec + t1.tv_sec;
-    if (td->tv_nsec >= NS_PER_SECOND)
-    {
-        td->tv_nsec -= NS_PER_SECOND;
-        td->tv_sec++;
-    }
-    else if (td->tv_nsec <= -NS_PER_SECOND)
-    {
-        td->tv_nsec += NS_PER_SECOND;
-        td->tv_sec--;
-    }
-}
 
 //************************************************************
 //* generique function called by client to get data
@@ -46,7 +29,7 @@ void add_timespec(struct timespec t1, struct timespec t2, struct timespec *td)
 //  output data :
 //      .databuffer
 //
-//  return: 0 OK
+//  return: > 0 OK len data read
 //          error number
 //************************************************************
 int libmessage_svc_getdata(sDataService_t *a_pDataService)
@@ -97,7 +80,7 @@ int libmessage_svc_getdata(sDataService_t *a_pDataService)
 
     clock_gettime(CLOCK_REALTIME, &vdate);
 
-    add_timespec(vdate,vdatedelta,&abs_timeout);
+    ADD_TIMESPEC(vdate,vdatedelta,abs_timeout);
 
     //***************************************************
     //              lock
@@ -213,13 +196,10 @@ int libmessage_svc_getdata(sDataService_t *a_pDataService)
         }
         else
         {
-            printf("%s %s: _42_ client read server response = %s  size=%d \n",
-                    getStrDate(),__FUNCTION__,
-                    dataBuffer,result);
+            printf("%s %s: _42_ client read server   size=%d \n",
+                    getStrDate(),__FUNCTION__,result);
 
-            memcpy(a_pDataService->databuffer,
-                    dataBuffer,
-                    sizeof(a_pDataService->databuffer));
+            memcpy(a_pDataService->databuffer,dataBuffer,result);
         }
     }
 
@@ -243,7 +223,8 @@ const char * getStrDate()
     struct timespec vRes = {0,0};
 
     result = clock_gettime(CLOCK_MONOTONIC_RAW,&vRes);
-    snprintf(vBuffer,25, "%4ld.%09ld",vRes.tv_sec,vRes.tv_nsec);
+    result = 100 - 3;
+    snprintf(vBuffer,result, "%4ld.%09ld",vRes.tv_sec,vRes.tv_nsec);
 
     return vBuffer;
 }
@@ -309,7 +290,7 @@ void * libmessage_threadFunction_srv(void * a_pArg)
         {
             printf("%s %s:_2_ open(%s) err=%d %s \n",
                     getStrDate(),__FUNCTION__,
-                    SVCNAME_TIME_GETDATE,errno,strerror(errno));
+                    FILENAME_SVC_TIME_GETDATE,errno,strerror(errno));
             result = errno;
         }
 
@@ -415,13 +396,12 @@ void * libmessage_threadFunction_srv(void * a_pArg)
             {
                 printf("%s %s: _10_ write(-%s-) err=%d %s \n",
                         getStrDate(),__FUNCTION__,
-                        SVCNAME_TIME_GETDATE,errno,strerror(errno));
+                        FILENAME_SVC_TIME_GETDATE,errno,strerror(errno));
             }
             else
             {
-                printf("%s %s:_11_ write(%s) ok len=%d \n",
-                        getStrDate(),__FUNCTION__,
-                        buffer,sizebuffer);
+                printf("%s %s:_11_ write() ok len=%d \n",
+                        getStrDate(),__FUNCTION__,sizebuffer);
             }
 
         }

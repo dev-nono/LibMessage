@@ -15,23 +15,23 @@
 #include <stdint.h>
 #include <semaphore.h>
 
-#include "libmessage_common.h"
+#include "libmessage.h"
 
-#define LIBMESSAGE_MAX_ARRAY    (100U)
-#define LIBMESSAGE_MAX_BUFFER   (1024U)
 
-//******************************************************
-//  services "server_time"
-//******************************************************
-#define SRVNAME_TIME             "/tmp/srvtime"
-#define SVCNAME_TIME_GETDATE     SRVNAME_TIME"_getdate"
-#define SVCNAME_TIME_SETDATE     SRVNAME_TIME"_setdate"
-#define SVCNAME_TIME_SIGNAL      SRVNAME_TIME"_signal"
-#define SVCNAME_TIME_END              ""
 
 #define SVR_TIME            "srvtime"
 #define SVC_GETDATE         "getdate"
 #define SVR_TIME_GETDATE_SEM    SVR_TIME"."SVC_GETDATE
+
+//******************************************************
+//  services "server_time"
+//******************************************************
+#define PATH_SRVNAME_TIME           "/tmp/srvtime"
+#define FILENAME_SVC_TIME_GETDATE   PATH_SRVNAME_TIME"_getdate"
+//#define SVCNAME_TIME_SETDATE     PATH_SRVNAME_TIME"_setdate"
+//#define SVCNAME_TIME_SIGNAL      PATH_SRVNAME_TIME"_signal"
+//#define SVCNAME_TIME_END              ""
+
 
 const char* get_arrayServiceName(uint32_t a_ServiceID );
 
@@ -39,7 +39,7 @@ struct sDataService
 {
     char            filenameClient[NAME_MAX+(1)];
     char            filenameServer[NAME_MAX+(1)];
-    pFunctCB_t       pFunctCB;
+    libmessage_pFunctCB_t       pFunctCB;
     int             id;
     sem_t           *pSemsvc;
 
@@ -70,56 +70,8 @@ int libmessage_svc_getdata(sDataService_t *a_pDataService);
 int libmessage_mkfifo(const char * a_Fifoname);
 int libmessage_openfifo(const char * a_Fifoname,uint32_t a_flag ,int *a_pFd);
 
-//int libmessage_register_serviceID(
-//        sDataThreadCtx_t *a_pContext,
-//        uint32_t    a_ServiceID ,   // SERVER_TIME_ID_GETDATE, SERVER_TIME_ID_SETDATE SERVER_TIME_ID_xxx
-//        pFuncCB_t   a_pFuncCB );
+void * libmessage_threadFunction_srv(void * a_pArg);
 
-//static int libmessage_sendEvent(sDataThread_t *a_pContext, uint32_t a_IndexService );
-//int libmessage_server_register_service_time(int         a_ServiceID ,
-//                                            pFuncCB_t   a_pFuncCB);
-
-
-//int libmessage_manageMessage(const char *a_Message);
-//int libmessage_pollCheck();
-
-
-
-////******************************************************
-////  services "server_time"
-////******************************************************
-//#define SERVER_TIME             "/server_time"
-//#define SERVER_TIME_GETDATE     SERVER_TIME".getdate"
-//#define SERVER_TIME_SETDATE     SERVER_TIME".setdate"
-//#define SERVER_TIME_SIGNAL      SERVER_TIME".signal"
-
-//*******************************************************
-//          SERVER ID
-//*******************************************************
-//#define LIBMESSAGE_SRVID_TIME       (0U)
-//#define LIBMESSAGE_SRVID_NETWORK    (1U)
-//#define LIBMESSAGE_SRVID_END        (LIBMESSAGE_SRVID_NETWORK+(1U))
-//
-////*******************************************************
-////          SERVICES ID
-////*******************************************************
-//#define LIBMESSAGE_SVCID_TIME_GETDATE  (0U)
-//#define LIBMESSAGE_SVCID_TIME_SETDATE  (1U)
-//#define LIBMESSAGE_SVCID_TIME_SIGNAL   (2U)
-//#define LIBMESSAGE_SVCID_TIME_END      (LIBMESSAGE_SVCID_TIME_SIGNAL+(1U))
-//
-//
-//#define LIBMESSAGE_SVCID_NET_ADD       (0U)
-//#define LIBMESSAGE_SVCID_NET_REMOVE    (1U)
-//#define LIBMESSAGE_SVCID_NET_END       (2U)
-
-////******************************************************
-////
-////******************************************************
-//int libmessage_register_service(
-//        uint32_t    a_ServerID ,   // LIBMESSAGE_SRVID_TIME  LIBMESSAGE_SRVID_NETWORK
-//        uint32_t    a_ServiceID , // SERVER_TIME_ID_GETDATE, SERVER_TIME_ID_SETDATE SERVER_TIME_ID_xxx
-//        pFuncCB_t   a_pFuncCB);
 
 
 #endif /* INC_LIBMESSAGE_INT_H_ */

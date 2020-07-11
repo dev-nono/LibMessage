@@ -1,0 +1,8 @@
+#! /bin/bash
+
+export LD_LIBRARY_PATH=$HOME/Dev/projects/Project/libapisyslog/apisyslog/Debug
+
+echo $LD_LIBRARY_PATH
+
+export |grep   LD_LIBRARY_PATH
+
