@@ -61,6 +61,8 @@
                                     									
                                     <listOptionValue builtIn="false" value="&quot;${workspace_loc:/libmessage/inc}&quot;"/>
                                     									
+                                    <listOptionValue builtIn="false" value="/media/ssd_data/Dev/projects/Project/common/inc"/>
+                                    									
                                     <listOptionValue builtIn="false" value="/media/ssd_data/Dev/projects/Project/libapisyslog/apisyslog"/>
                                     								
                                 </option>

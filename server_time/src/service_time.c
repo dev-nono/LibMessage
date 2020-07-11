@@ -19,7 +19,7 @@
 
 #include <string.h>
 #include <errno.h>
- #include <unistd.h>
+#include <unistd.h>
 
 #include <unistd.h>
 #include <fcntl.h>
@@ -33,13 +33,15 @@
 #include <poll.h>
 #include <semaphore.h>
 
+#include "apisyslog.h"
+#include "utils.h"
 #include "libmessage_int.h"
 #include "libmessage.h"
 
 #include "libmessage_svc_time.h"
 
 
- sem_t *g_pSemGedate = 0;
+sem_t *g_pSemGedate = 0;
 
 
 // static int libmessage_cbfcnt_signaldate(char* a_pData)
@@ -59,24 +61,26 @@
 static int libmessage_cbfcnt_getdate(char* a_pData)
 {
     int result = 0;
-    //char outstr[PIPE_BUF] = {0};
+    char msgbuffer[APISYSLOG_MSG_SIZE] = {0};
 
     struct timespec tp = {0};
 
     clock_gettime(CLOCK_MONOTONIC_RAW, &tp);
 
-//    result = snprintf(a_pData,PIPE_BUF-10,"%lld.%.9ld",
-//            (long long)tp.tv_sec,tp.tv_nsec);
+    //    result = snprintf(a_pData,PIPE_BUF-10,"%lld.%.9ld",
+    //            (long long)tp.tv_sec,tp.tv_nsec);
 
     memcpy(a_pData,&tp,sizeof(tp));
 
-    fprintf(stderr,"%s %s: date=%ld.%ld len=%d\n",
-             (char*)getStrDate(),__FUNCTION__,
-             tp.tv_sec,tp.tv_nsec,result);
-
     result =  sizeof(tp);
 
-     return result;
+    snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
+            " : date=%ld.%09ld len=%d\n",
+            tp.tv_sec,tp.tv_nsec,result);
+
+    TRACE_LOG(msgbuffer);
+
+    return result;
 }
 
 //*********************************************************
@@ -88,13 +92,16 @@ int main(int argc, char *argv[])
 
     (void)argv;
     (void)argc;
-//    result = srv_getdate();
-//
-//
-//
+
+    apisyslog_init("");
+
+    //    result = srv_getdate();
+    //
+    //
+    //
     result = libmessage_srvtime_register_getdate(&libmessage_cbfcnt_getdate);
-//    result = libmessage_srvtime_register_setdate(&libmessage_cbfcnt_setdate);
-//    result = libmessage_srvtime_register_signaldate(&libmessage_cbfcnt_signaldate);
+    //    result = libmessage_srvtime_register_setdate(&libmessage_cbfcnt_setdate);
+    //    result = libmessage_srvtime_register_signaldate(&libmessage_cbfcnt_signaldate);
 
 
     result = libmessage_srvtime_wait();

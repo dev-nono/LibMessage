@@ -24,7 +24,7 @@
 
 #include "apisyslog.h"
 
-
+#include "utils.h"
 #include "libmessage_int.h"
 #include  "libmessage_svc_time.h"
 
@@ -62,6 +62,7 @@ int libmessage_srvtime_register_getdate(libmessage_pFunctCB_t a_pFunctCB)
 {
     int result = 0;
 
+    char msgbuffer[APISYSLOG_MSG_SIZE] = {0};
 
     memset(&g_ThdCtxGetdata,0,sizeof(g_ThdCtxGetdata));
 
@@ -81,11 +82,15 @@ int libmessage_srvtime_register_getdate(libmessage_pFunctCB_t a_pFunctCB)
     {
         errno = 0;
         result = sem_unlink(SVR_TIME_GETDATE_SEM);
-        if( 0 == result )
+        if( 0 != result )
         {
-            fprintf(stderr,"%s %s: sem_unlink(%s) result=%d errno=%d %s \n",
-                    getStrDate(),__FUNCTION__, SVR_TIME_GETDATE_SEM,
+            snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
+                    ": sem_unlink(%s) result=%d errno=%d %s",
+                     SVR_TIME_GETDATE_SEM,
                     result,errno,strerror(errno));
+
+            fprintf(stderr,"%s : %s",__FUNCTION__, msgbuffer);
+            TRACE_ERR(msgbuffer);
         }
 
         result = 0;
@@ -94,12 +99,14 @@ int libmessage_srvtime_register_getdate(libmessage_pFunctCB_t a_pFunctCB)
                 O_CREAT,S_IRWXU,1U);
         if( SEM_FAILED == g_ThdCtxGetdata.dataService.pSemsvc)
         {
-            fprintf(stderr,"%s %s: sem_open(%s) result=0x%p errno=%d %s \n",
-                    getStrDate(),__FUNCTION__,
+            snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
+                    "sem_open(%s) result=0x%p errno=%d %s",
                     SVR_TIME_GETDATE_SEM,
                     (void*)g_ThdCtxGetdata.dataService.pSemsvc,
                     errno,strerror(errno));
-            result = errno;
+
+            fprintf(stderr,"%s : %s\n",__FUNCTION__, msgbuffer);
+            TRACE_ERR(msgbuffer);
         }
     }
 
@@ -116,9 +123,13 @@ int libmessage_srvtime_register_getdate(libmessage_pFunctCB_t a_pFunctCB)
 
         if( 0 != result )
         {
-            fprintf(stderr,"%s %s : pthread_create() error =%d %s \n",
-                    getStrDate(),__FUNCTION__ ,
+
+            snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
+                    ": pthread_create() error =%d %s",
                     result,strerror(result));
+
+            fprintf(stderr,"%s : %s",__FUNCTION__, msgbuffer);
+            TRACE_ERR(msgbuffer);
         }
     }
 
@@ -134,12 +145,21 @@ int libmessage_getdate( const char *a_Callername,
                         double     *a_pDate)
 {
     int result = EXIT_SUCCESS;
+    char msgbuffer[APISYSLOG_MSG_SIZE] = {0};
 
     sDataService_t vDataService = {0};
 
     if( (!a_Callername) || (!*a_Callername) || (!a_pDate) )
     {
         result = EINVAL ;
+
+        snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
+                " : Invalid argument error =%d %s",
+
+                result,strerror(result));
+
+        fprintf(stderr,"%s : %s",__FUNCTION__, msgbuffer);
+        TRACE_ERR(msgbuffer);
     }
 
     if( EXIT_SUCCESS == result )
@@ -147,24 +167,20 @@ int libmessage_getdate( const char *a_Callername,
         strcpy(vDataService.filenameClient,a_Callername);
 
         strcpy(vDataService.filenameServer,FILENAME_SVC_TIME_GETDATE);
-//        strncpy(vDataService.filenameClient,
-//                a_Callername,
-//                sizeof(vDataService.filenameClient)-1);
-//
-//        strncpy(vDataService.filenameServer,
-//                SVCNAME_TIME_GETDATE,
-//                sizeof(vDataService.filenameServer)-1);
-
 
         errno = 0;
         vDataService.pSemsvc = sem_open(SVR_TIME_GETDATE_SEM,0);
-        fprintf(stderr,"%s %s: sem_open(%s) result=0x%p errno=%d %s \n",
-                getStrDate(),__FUNCTION__,FILENAME_SVC_TIME_GETDATE,
-                (void*)vDataService.pSemsvc,
-                errno,strerror(errno));
 
         if( SEM_FAILED == vDataService.pSemsvc)
         {
+            snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
+                    ": sem_open(%s) result=0x%p errno=%d %s",
+                    FILENAME_SVC_TIME_GETDATE,
+                    (void*)vDataService.pSemsvc,
+                    errno,strerror(errno));
+            fprintf(stderr,"%s : %s",__FUNCTION__, msgbuffer);
+            TRACE_ERR(msgbuffer);
+
             result = errno;
         }
 

@@ -15,6 +15,7 @@
 #include <errno.h>
 
 
+#include "utils.h"
 #include "apisyslog.h"
 #include "libmessage_svc_time.h"
 
@@ -29,6 +30,7 @@ int main(int argc, char *argv[])
     int counter = -1;
     unsigned int ii = 0;
 
+    char array[DOUBLE_MANTIS_SIZE] = {0};
 
     apisyslog_init("");
 
@@ -50,7 +52,7 @@ int main(int argc, char *argv[])
 
                 memset(&arrayDate,0,sizeof(arrayDate));
 
-                printf("\n%s type any key to continue \n",getStrDate());
+                printf("\n%0.9f type any key to continue \n",getDateRawDouble());
                 getchar();
             }
             else

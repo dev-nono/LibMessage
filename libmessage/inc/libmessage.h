@@ -17,7 +17,7 @@ typedef int (*libmessage_pFunctCB_t)(char*);
 //******************************************************
 //  generic function
 //******************************************************
-const char * getStrDate();
+const char * getDateRawStr();
 
 
 #endif /* INC_LIBMESSAGE_H_ */

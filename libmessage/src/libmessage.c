@@ -13,8 +13,9 @@
 
 #include <sys/stat.h>
 #include <unistd.h>
- #include <math.h>
+#include <math.h>
 
+#include "apisyslog.h"
 #include <utils.h>
 #include "libmessage_int.h"
 #include "libmessage.h"
@@ -39,6 +40,7 @@ int libmessage_svc_getdata(sDataService_t *a_pDataService)
     int     fdServer = -1;
     char    dataBuffer[PIPE_BUF];
     int     vSize = 0;
+    char    msgbuffer[APISYSLOG_MSG_SIZE] = {0};
 
     struct pollfd   vPollfdClient = {0};
     nfds_t          vNfds    = 1;
@@ -74,21 +76,27 @@ int libmessage_svc_getdata(sDataService_t *a_pDataService)
         result = libmessage_openfifo(a_pDataService->filenameServer,O_WRONLY,&fdServer);
     }
 
-    struct timespec vdate = {0,0};
-    struct timespec vdatedelta = {0,1e9/1000*100};
-    struct timespec abs_timeout = {0,0};
+    if( 0 == result )
+    {
+        struct timespec vdatedelta = {0,1e9/1000*100}; // 100ms
+        struct timespec abs_timeout = {0,0};
 
-    clock_gettime(CLOCK_REALTIME, &vdate);
+        ADD_TIMESPEC_REAL(vdatedelta,abs_timeout);
 
-    ADD_TIMESPEC(vdate,vdatedelta,abs_timeout);
+        //***************************************************
+        //              lock
+        //***************************************************
+        result = sem_timedwait(a_pDataService->pSemsvc,&abs_timeout);
+        if( 0 != result )
+        {
+            snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
+                    " : sem_wait() result=%d err=%d %s",
+                    result,errno,strerror(errno));
 
-    //***************************************************
-    //              lock
-    //***************************************************
-    result = sem_timedwait(a_pDataService->pSemsvc,&abs_timeout);
-    printf("%s _1_ sem_wait() result=%d err=%d %s \n",
-            getStrDate(),result,errno,strerror(errno));
-
+            fprintf(stderr,"%s : %s",__FUNCTION__, msgbuffer);
+            TRACE_ERR(msgbuffer);
+        }
+    }
 
     //*********************************************************
     //          write request
@@ -101,31 +109,30 @@ int libmessage_svc_getdata(sDataService_t *a_pDataService)
 
         if(-1 ==  result)
         {
-            printf("%s %s: _2_ server write(-%s-) Error %d %s \n",
-                    getStrDate(),__FUNCTION__,
-                    a_pDataService->filenameServer,errno,strerror(errno));
             result = errno;
+            snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
+                    " : _2_ server write(-%s-) Error %d %s \n",
+                    a_pDataService->filenameServer,errno,strerror(errno));
+
+            fprintf(stderr,"%s : %s",__FUNCTION__, msgbuffer);
+            TRACE_ERR(msgbuffer);
         }
         else
         {
-            printf("%s %s: _21_ server write(%s) result=%d \n",
-                    getStrDate(),__FUNCTION__,
+            TRACE_DBG1(" : _21_ server write(%s) result=%d \n",
                     a_pDataService->filenameServer, result);
             result = 0;
         }
-            close(fdServer);
-            fdServer = -1;
 
-            result = sem_post(a_pDataService->pSemsvc);
-   }
+        close(fdServer);
+        fdServer = -1;
+
+        result = sem_post(a_pDataService->pSemsvc);
+    }
 
 
-    fprintf(stderr,"%s %s: _3_ sem_post resulty=%d err=%d %s \n",
-            getStrDate(),__FUNCTION__,
+    TRACE_DBG1(" : _3_ sem_post resulty=%d err=%d %s \n",
             result,errno,strerror(errno));
-
-//    printf("%s _3_ type any key to continue 1 \n",getStrDate());
-//    getchar();
 
     //*********************************************************
     //      waiting receive response : polling
@@ -139,30 +146,33 @@ int libmessage_svc_getdata(sDataService_t *a_pDataService)
         errno = 0;
         result  = poll(&vPollfdClient, vNfds, vTimeout);
 
-        printf("%s %s: _31_ poll  result=%d: revents=%d 0x%X \n",
-                getStrDate(),__FUNCTION__,
+        TRACE_DBG1(" : _31_ poll  result=%d: revents=%d 0x%X \n",
                 result,
                 (int)vPollfdClient.revents,(int)vPollfdClient.revents);
 
 
         if( ( -1 == result ) )
         {
-            printf("%s %s: _32_ poll() errno=%d %s \n",
-                    getStrDate(),__FUNCTION__,
+            snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
+                    " : _32_ poll() errno=%d %s \n",
                     errno,strerror(errno));
+
             result = errno;
+
+            fprintf(stderr,"%s : %s",__FUNCTION__, msgbuffer);
+            TRACE_ERR(msgbuffer);
+
         }
         else if( (result ) && ( vPollfdClient.revents & POLLHUP) )
         {
-            printf("%s %s: _33_ poll() result=%d POLLHUP event \n",
-                    getStrDate(),__FUNCTION__,result);
+            TRACE_ERR(" : _33_ poll() result=%d POLLHUP event \n",
+                    result);
 
             result = EPIPE;
         }
         else if( 0 == result )
         {
-            printf("%s %s: _34_ poll() Error Timeout %d %s \n",
-                    getStrDate(),__FUNCTION__,
+            TRACE_DBG1(" : _34_ poll() Error Timeout %d %s \n",
                     errno,strerror(errno));
             result = errno;
         }
@@ -175,7 +185,7 @@ int libmessage_svc_getdata(sDataService_t *a_pDataService)
     //*********************************************************
     //          read response from server
     //*********************************************************
-  if( 0 == result )
+    if( 0 == result )
     {
 
         memset(dataBuffer,0,sizeof(dataBuffer));
@@ -184,50 +194,39 @@ int libmessage_svc_getdata(sDataService_t *a_pDataService)
 
         if( 0 == result )
         {
-            printf("%s %s: _4_ read(-%s-) Error client %d:  result == 0  \n",
-                    getStrDate(),__FUNCTION__,
+            snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
+                    " : _4_ read(-%s-) Error client %d:  result == 0  \n",
                     vClientName,result);
+
+            fprintf(stderr,"%s : %s",__FUNCTION__, msgbuffer);
+            TRACE_ERR(msgbuffer);
         }
         else if (-1 == result )
         {
-            printf("%s %s: _41_ read(-%s-) error client %d %s \n",
-                    getStrDate(),__FUNCTION__,
+            snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
+                    ": _41_ read(-%s-) error client %d %s \n",
                     vClientName,errno,strerror(errno));
+
+            fprintf(stderr,"%s : %s",__FUNCTION__, msgbuffer);
+            TRACE_ERR(msgbuffer);
         }
         else
         {
-            printf("%s %s: _42_ client read server   size=%d \n",
-                    getStrDate(),__FUNCTION__,result);
+            TRACE_DBG1(" : _42_ client read server   size=%d \n",result);
 
             memcpy(a_pDataService->databuffer,dataBuffer,result);
         }
     }
 
-  if( -1 != fdServer)
-      close(fdServer);
+    if( -1 != fdServer)
+        close(fdServer);
 
-  if( -1 != vPollfdClient.fd)
-      close(vPollfdClient.fd);
+    if( -1 != vPollfdClient.fd)
+        close(vPollfdClient.fd);
 
     return result;
 }
 
-//****************************************************
-//*
-//*
-//****************************************************
-const char * getStrDate()
-{
-    int result = 0;
-    static char vBuffer[100] = {0};
-    struct timespec vRes = {0,0};
-
-    result = clock_gettime(CLOCK_MONOTONIC_RAW,&vRes);
-    result = 100 - 3;
-    snprintf(vBuffer,result, "%4ld.%09ld",vRes.tv_sec,vRes.tv_nsec);
-
-    return vBuffer;
-}
 
 
 
@@ -248,27 +247,32 @@ void * libmessage_threadFunction_srv(void * a_pArg)
     nfds_t          vNfds    = 1;
     int             vTimeout = -1;
     int             sizebuffer = 0;
+    char msgbuffer[APISYSLOG_MSG_SIZE] = {0};
 
     result = libmessage_mkfifo(pContext->dataService.filenameServer);
     if( 0 != result )
     {
-        fprintf(stderr,"%s %s : error libmessage_mkfifo(%s)",
-                getStrDate(),__FUNCTION__,pContext->dataService.filenameServer);
+        snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
+                " : error libmessage_mkfifo(%s)",
+                pContext->dataService.filenameServer);
+
+        fprintf(stderr,"%s : %s",__FUNCTION__, msgbuffer);
+        TRACE_ERR(msgbuffer);
     }
 
     //******************************************************
     //  lock fifo server
     //******************************************************
     result = sem_wait(pContext->dataService.pSemsvc);
-    printf("%s %s : _1_ sem_wait() result=%d err=%d %s \n",
-            getStrDate(),__FUNCTION__,result,errno,strerror(errno));
-//
-//    //******************************************************
-//    //  release semaphore
-//    //******************************************************
-//    result = sem_post(pContext->dataService.pSemsvc);
-//
-//
+    TRACE_DBG1(" : _1_ sem_wait() result=%d err=%d %s \n",
+            result,errno,strerror(errno));
+    //
+    //    //******************************************************
+    //    //  release semaphore
+    //    //******************************************************
+    //    result = sem_post(pContext->dataService.pSemsvc);
+    //
+    //
 
     do
     {
@@ -288,10 +292,13 @@ void * libmessage_threadFunction_srv(void * a_pArg)
 
         if( -1 == fdServer )
         {
-            printf("%s %s:_2_ open(%s) err=%d %s \n",
-                    getStrDate(),__FUNCTION__,
+            snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
+                    " :_2_ open(%s) err=%d %s \n",
                     FILENAME_SVC_TIME_GETDATE,errno,strerror(errno));
             result = errno;
+
+            fprintf(stderr,"%s : %s",__FUNCTION__, msgbuffer);
+            TRACE_ERR(msgbuffer);
         }
 
         if( 0 == result )
@@ -300,8 +307,8 @@ void * libmessage_threadFunction_srv(void * a_pArg)
             //              unlock
             //***************************************************
             result = sem_post(pContext->dataService.pSemsvc);
-            printf("%s %s: _3_ sem_post() result=%d err=%d %s \n",
-                    getStrDate(),__FUNCTION__,result,errno,strerror(errno));
+            TRACE_DBG1(" : _3_ sem_post() result=%d err=%d %s \n",
+                    result,errno,strerror(errno));
         }
 
         if( 0 == result )
@@ -316,8 +323,8 @@ void * libmessage_threadFunction_srv(void * a_pArg)
 
             result  = poll(&vPollfd, vNfds, vTimeout);
 
-            printf("%s %s: _4_ poll  result=%d: revents=%d 0x%X \n",
-                    getStrDate(),__FUNCTION__,result, (int)vPollfd.revents,(int)vPollfd.revents);
+            TRACE_DBG1(" : _4_ poll  result=%d: revents=%d 0x%X \n",
+                    result, (int)vPollfd.revents,(int)vPollfd.revents);
         }
         if( 0 < result )
         {
@@ -325,9 +332,9 @@ void * libmessage_threadFunction_srv(void * a_pArg)
             //  lock fifo server
             //******************************************************
             result = sem_wait(pContext->dataService.pSemsvc);
-            printf("%s %s : _5_ sem_wait() result=%d err=%d %s \n",
-                    getStrDate(),__FUNCTION__,result,errno,strerror(errno));
-        //
+            TRACE_DBG1(" : _5_ sem_wait() result=%d err=%d %s \n",
+                    result,errno,strerror(errno));
+            //
 
         }
         if( 0 == result )
@@ -343,21 +350,26 @@ void * libmessage_threadFunction_srv(void * a_pArg)
 
             if( 0 == result )
             {
-                printf("%s %s: _6_ read(-%s-) err=%d size == 0  \n",
-                        getStrDate(),__FUNCTION__,
+                snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
+                        " : _6_ read(-%s-) err=%d size == 0  \n",
                         vClientName, errno);
+                fprintf(stderr,"%s : %s",__FUNCTION__, msgbuffer);
+                TRACE_ERR(msgbuffer);
+
                 result = -1;
             }
             else if (-1 == result )
             {
-                printf("%s %s : _7_ read(-%s-) Error %d %s \n",
-                        getStrDate(),__FUNCTION__,
+                snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
+                        " : _7_ read(-%s-) Error %d %s \n",
                         vClientName,errno,strerror(errno));
+
+                fprintf(stderr,"%s : %s",__FUNCTION__, msgbuffer);
+                TRACE_ERR(msgbuffer);
             }
             else
             {
-                printf("%s %s _8_ read(-%s-) size=%d \n",
-                        getStrDate(),__FUNCTION__,
+                TRACE_DBG1(" : _8_ read(-%s-) size=%d \n",
                         vClientName,result);
                 result = 0;
             }
@@ -372,10 +384,12 @@ void * libmessage_threadFunction_srv(void * a_pArg)
 
             if( -1 == fdClient  )
             {
-                printf("%s %s _9_ open(-%s-) err=%d %s \n",
-                        getStrDate(),__FUNCTION__,
+                snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
+                        " : _9_ open(-%s-) err=%d %s \n",
                         vClientName,errno,strerror(errno));
                 result = errno;
+                fprintf(stderr,"%s : %s",__FUNCTION__, msgbuffer);
+                TRACE_ERR(msgbuffer);
             }
         }
 
@@ -394,16 +408,17 @@ void * libmessage_threadFunction_srv(void * a_pArg)
             result = write(fdClient,buffer,sizebuffer);
             if(-1 ==  result)
             {
-                printf("%s %s: _10_ write(-%s-) err=%d %s \n",
-                        getStrDate(),__FUNCTION__,
+                snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
+                        " : _10_ write(-%s-) err=%d %s \n",
                         FILENAME_SVC_TIME_GETDATE,errno,strerror(errno));
+                fprintf(stderr,"%s : %s",__FUNCTION__, msgbuffer);
+                TRACE_ERR(msgbuffer);
+
             }
             else
             {
-                printf("%s %s:_11_ write() ok len=%d \n",
-                        getStrDate(),__FUNCTION__,sizebuffer);
+                TRACE_DBG1(" :_11_ write() ok len=%d \n",sizebuffer);
             }
-
         }
 
     }while(1);
@@ -418,6 +433,7 @@ void * libmessage_threadFunction_srv(void * a_pArg)
 int libmessage_mkfifo(const char* a_endpointName)
 {
     int result = 0;
+    char msgbuffer[APISYSLOG_MSG_SIZE] = {0};
 
     unlink(a_endpointName);
 
@@ -430,14 +446,19 @@ int libmessage_mkfifo(const char* a_endpointName)
     if( (0 != result ) && (EEXIST != errno) )
     {
         // error
-        fprintf(stderr,"%s %s: mkfifo(-%s-) Error=%d %s \n",
-                getStrDate(),__FUNCTION__,
-                a_endpointName,errno,strerror(errno));
+        snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
+                ": mkfifo(-%s-) Error=%d %s \n",
+                a_endpointName,
+                errno,strerror(errno));
+
+        fprintf(stderr,"%s : %s",__FUNCTION__, msgbuffer);
+        TRACE_ERR(msgbuffer);
+
     }
     else
     {
-        fprintf(stderr,"%s %s : mkfifo(%s) OK \n",
-                getStrDate(),__FUNCTION__,a_endpointName);
+        TRACE_DBG1(": mkfifo(%s) OK \n",
+                a_endpointName);
         result = 0;
     }
 
@@ -450,10 +471,11 @@ int libmessage_mkfifo(const char* a_endpointName)
 //                  -1 : error
 //******************************************************
 int libmessage_openfifo(    const char *a_Fifoname,
-                            uint32_t    a_flag ,
-                            int         *a_pFd)
+        uint32_t    a_flag ,
+        int         *a_pFd)
 {
     int result = 0;
+    char msgbuffer[APISYSLOG_MSG_SIZE] = {0};
 
     // open client endpoint
     errno = 0;
@@ -461,15 +483,18 @@ int libmessage_openfifo(    const char *a_Fifoname,
 
     if( -1 == result  )
     {
-        fprintf(stderr,"%s %s:Error open(%s,0x%X) %d %s\n",
-                getStrDate(),__FUNCTION__,
+        snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
+                ":Error open(%s,0x%X) %d %s",
                 a_Fifoname, O_NONBLOCK|O_CLOEXEC|a_flag,
                 errno,strerror(errno));
+
+        fprintf(stderr,"%s : %s",__FUNCTION__, msgbuffer);
+        TRACE_ERR(msgbuffer);
+
     }
     else
     {
-        fprintf(stderr,"%s %s: open(%s,0x%X) = %d \n",
-                getStrDate(),__FUNCTION__,
+        TRACE_DBG1(": open(%s,0x%X) = %d \n",
                 a_Fifoname, O_NONBLOCK|O_CLOEXEC|a_flag,result);
         *a_pFd = result;
         result = 0;
