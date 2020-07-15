@@ -352,6 +352,7 @@ int libmessage_svc_getdata(sDataService_t *a_pDataService)
         {
             TRACE_DBG1(" : _42_ client fifo read from server size=%d result=%d\n",
                     vSize , result);
+            result = 0;
         }
     }
 
@@ -370,7 +371,8 @@ int libmessage_svc_getdata(sDataService_t *a_pDataService)
 //****************************************************
 void * libmessage_threadFunction_srv(void * a_pArg)
 {
-    int             result  = 0;
+    int             result          = 0;
+    int             resultService   = 0;
     sDataThreadCtx_t   *pContext = (sDataThreadCtx_t*)a_pArg;
 
     int     fdServer = -1;
@@ -530,9 +532,11 @@ void * libmessage_threadFunction_srv(void * a_pArg)
             memset(&pContext->dataService.response,0,
                     sizeof(pContext->dataService.response));
 
-            sizebuffer = pContext->dataService.pFunctCB( // TODO
+            resultService = pContext->dataService.pFunctCB(
                   &pContext->dataService.request,
                   &pContext->dataService.response);
+
+            (void)resultService;
         }
         //*********************************************************
         //          write response

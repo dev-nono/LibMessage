@@ -65,8 +65,8 @@ struct sResponse
     union
     {
         sGetdateResponse_t      getdate;
-        sSetdateResponse_t      setDate;
-        sSignaldateResponse_t   Signaldate;
+        sSetdateResponse_t      setdate;
+        sSignaldateResponse_t   signaldate;
    }uResponse;
 };
 typedef struct sResponse sResponse_t;
@@ -81,8 +81,8 @@ struct sRequest
     union
     {
         sGetdateRequest_t      getdata;
-        sSetdateRequest_t      setDate;
-        sSignaldateRequest_t   Signaldate;
+        sSetdateRequest_t      setdate;
+        sSignaldateRequest_t   signaldate;
    }uRequest;
 };
 typedef struct sRequest sRequest_t;

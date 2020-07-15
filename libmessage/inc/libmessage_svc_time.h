@@ -71,12 +71,16 @@ int libmessage_srvtime_wait();
 //************************************************************
 //  client side
 //      return:
-//          EXIT_SUCCESS    0
+//          SUCCESS    0
 //          EINVAL          22  Invalid argument
 //************************************************************
 int libmessage_getdate(
         _IN_  const char *a_Callername,   // address fifo name to respond
         _OUT_ double     *a_pDate);        // buffer data output
+
+int libmessage_setdate(
+        _IN_  const char *a_Callername,   // address fifo name to respond
+        _IN_ double     a_Date);        // buffer data output
 
 //******************************************************
 //  service time part SERVER

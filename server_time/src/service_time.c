@@ -16,40 +16,44 @@
 #include "apisyslog.h"
 #include "utils.h"
 
+#include <errno.h>
 #include "libmessage_int.h"
 #include "libmessage_svc_time.h"
 
 
 
- static int libmessage_cbfcnt_signaldate(const    void * a_pRequest,
-                                                 void * a_pResponse)
- {
-     int result = 0;
-
-     sRequest_t *  pRequest   = (sRequest_t*) a_pRequest;
-     sResponse_t * pResponse  = (sResponse_t*)a_pResponse;
-
-     (void)pRequest;
-     (void)pResponse;
-
-     return  result;
- }
+// static int libmessage_cbfcnt_signaldate(const    void * a_pRequest,
+//                                                 void * a_pResponse)
+// {
+//     int result = 0;
+//
+//     sRequest_t *  pRequest   = (sRequest_t*) a_pRequest;
+//     sResponse_t * pResponse  = (sResponse_t*)a_pResponse;
+//
+//     (void)pRequest;
+//     (void)pResponse;
+//
+//     return  result;
+// }
 
  static int libmessage_cbfcnt_setdate(const    void * a_pRequest,
                                                  void * a_pResponse)
  {
-     int result = 0;
+     int result = ENODATA;
+     char msgbuffer[APISYSLOG_MSG_SIZE] = {0};
      sRequest_t *  pRequest   = (sRequest_t*) a_pRequest;
      sResponse_t * pResponse  = (sResponse_t*)a_pResponse;
 
-     (void)pRequest;
-     (void)pResponse;
+     pResponse->result = ENODATA;
 
-//
-//     struct timespec *pTp = (struct timespec *)a_pData;
-//
-//
-//     printf("%ld.%09ld",pTp->tv_sec,pTp->tv_nsec);
+     snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
+             " : setdate=%ld.%09ld result=%d\n",
+             pRequest->uRequest.setdate.timespesc.tv_sec,
+             pRequest->uRequest.setdate.timespesc.tv_nsec,
+             result);
+
+
+     TRACE_LOG(msgbuffer);
 
      return  result;
  }
@@ -100,7 +104,7 @@ int main(int argc, char *argv[])
     //
     result = libmessage_srvtime_register_getdate(&libmessage_cbfcnt_getdate);
     result = libmessage_srvtime_register_setdate(&libmessage_cbfcnt_setdate);
-    result = libmessage_srvtime_register_signaldate(&libmessage_cbfcnt_signaldate);
+//    result = libmessage_srvtime_register_signaldate(&libmessage_cbfcnt_signaldate);
 
 
     result = libmessage_srvtime_wait();

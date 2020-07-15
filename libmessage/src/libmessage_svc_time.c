@@ -41,6 +41,7 @@ int libmessage_srvtime_wait()
 
     // joint thread 1
     pthread_join(getTheadCtx(eLIBMSG_ID_GETDATA)->pthreadID,0);
+    pthread_join(getTheadCtx(eLIBMSG_ID_SETDATA)->pthreadID,0);
     // joint thread 2
     // joint thread 3
 
@@ -88,14 +89,14 @@ int libmessage_srvtime_register_signaldate(libmessage_pFunctCB_t a_pFunctCB)
 //************************************************************
 //  client side
 //      return:
-//          EXIT_SUCCESS    0
+//          SUCCESS    0
 //          EINVAL          22  Invalid argument
 //************************************************************
 int libmessage_getdate(
         _IN_  const char *a_Callername,   // address fifo name to respond
         _OUT_ double     *a_pDate)        // buffer data output
 {
-    int         result                          = EXIT_SUCCESS;
+    int         result                          = SUCCESS;
     char        msgbuffer[APISYSLOG_MSG_SIZE]   = {0};
 
     sDataService_t vDataService = {0};
@@ -113,7 +114,7 @@ int libmessage_getdate(
         TRACE_ERR(msgbuffer);
     }
 
-    if( EXIT_SUCCESS == result )
+    if( SUCCESS == result )
     {
         strcpy(vDataService.filenameClientSuffix,a_Callername);
 
@@ -138,7 +139,7 @@ int libmessage_getdate(
         vDataService.pFunctCB = 0;
     }
 
-    if( EXIT_SUCCESS == result )
+    if( SUCCESS == result )
     {
         result = libmessage_svc_getdata(&vDataService);
     }
@@ -161,14 +162,14 @@ int libmessage_getdate(
 //************************************************************
 //  client side
 //      return:
-//          EXIT_SUCCESS    0
+//          SUCCESS    0
 //          EINVAL          22  Invalid argument
 //************************************************************
 int libmessage_setdate(
         _IN_  const char *a_Callername,   // address fifo name to respond
         _IN_    double     a_pDate)        // buffer data output
 {
-    int result = EXIT_SUCCESS;
+    int result = SUCCESS;
 
     char msgbuffer[APISYSLOG_MSG_SIZE] = {0};
 
@@ -187,7 +188,7 @@ int libmessage_setdate(
         TRACE_ERR(msgbuffer);
     }
 
-    if( EXIT_SUCCESS == result )
+    if( SUCCESS == result )
     {
         strcpy(vDataService.filenameClientSuffix,a_Callername);
 
@@ -212,19 +213,25 @@ int libmessage_setdate(
         vDataService.pFunctCB = 0;
     }
 
-    if( EXIT_SUCCESS == result )
+    if( SUCCESS == result )
     {
         result = libmessage_svc_getdata(&vDataService);
     }
 
-//    if( 0 < result )
-//    {
-//        struct timespec tp = {0};
-//
-//        memcpy(&tp,vDataService.databuffer,sizeof(tp));
-//
-//        *a_pDate = ((double)tp.tv_sec) + ((double)tp.tv_nsec*1e-9);
-//    }
+    if( SUCCESS == result )
+    {
+        if(SUCCESS != vDataService.response.result)
+        {
+            TRACE_ERR(" service error = %d %s",
+                    vDataService.response.result,
+                    strerror(vDataService.response.result));
 
-    return result !=0;
+        }
+        result = vDataService.response.result;
+    }
+    else
+    {
+    }
+
+    return result ;
 }
