@@ -9,6 +9,7 @@
  */
 
 
+#include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -17,12 +18,14 @@
 
 #include "utils.h"
 #include "apisyslog.h"
+
 #include "libmessage_svc_time.h"
 
 
 #define MAX_ARRAY (10U)
 
-int main(int argc, char *argv[])
+
+int check_getDateLoop(char* a_fifoName)
 {
     int     result = EXIT_SUCCESS;
     double  arrayDate[MAX_ARRAY] = {0.0};
@@ -30,48 +33,76 @@ int main(int argc, char *argv[])
     int counter = -1;
     unsigned int ii = 0;
 
-    char array[DOUBLE_MANTIS_SIZE] = {0};
-
-    apisyslog_init("");
-
 
     TRACE_IN("cli_message main IN")
 
 
+    do{
+        if( counter == MAX_ARRAY-1 )
+        {
+            counter = 0;
+
+            for(ii=0; ii < MAX_ARRAY;ii++)
+            {
+                printf("%0.9f\n",arrayDate[ii]);
+            }
+
+            memset(&arrayDate,0,sizeof(arrayDate));
+
+            printf("\n%0.9f type any key to continue \n",getDateRawDouble());
+            getchar();
+        }
+        else
+        {
+            counter++;
+        }
+
+        value = 0.0;
+        result = libmessage_getdate(a_fifoName,&value);
+        arrayDate[counter] = value;
+
+    }while(1);
+
+    printf("exit result=%d ii=%d \n",result, ii);
+
+    return result;
+
+}
+int check_getDate(char* a_fifoName)
+{
+    int     result = EXIT_SUCCESS;
+    double  value = 0.0;
+
+    TRACE_IN("cli_message main IN")
+
+    do{
+        sleep(1);
+
+        value = 0.0;
+        result = libmessage_getdate(a_fifoName,&value);
+        printf("%0.9f\n",value);
+
+    }while(1);
+
+
+    return result;
+}
+
+int main(int argc, char *argv[])
+{
+    int     result = EXIT_SUCCESS;
+
+    apisyslog_init("");
+
     if( argc > 1 )
     {
-        do{
-            if( counter == MAX_ARRAY-1 )
-            {
-                counter = 0;
-
-                for(ii=0; ii < MAX_ARRAY;ii++)
-                {
-                    printf("%0.9f\n",arrayDate[ii]);
-                }
-
-                memset(&arrayDate,0,sizeof(arrayDate));
-
-                printf("\n%0.9f type any key to continue \n",getDateRawDouble());
-                getchar();
-            }
-            else
-            {
-                counter++;
-            }
-
-            value = 0.0;
-            result = libmessage_getdate(argv[1],&value);
-            arrayDate[counter] = value;
-
-        }while(1);
+        check_getDate(argv[1]);
     }
     else
     {
         printf("Error no client name ! \n");
     }
 
-    printf("exit result=%d ii=%d \n",result, ii);
 
     return result;
 }

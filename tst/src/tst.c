@@ -20,7 +20,74 @@
 
 #define MQ_FILENAME "/server_time"
 
-int main(void) {
+
+//#define STRINGIFY(x) #x
+//#define STRINGIFY_2(aa,bb) STRINGIFY(aa ## bb)
+//#define STRINGIFY_3(aa,bb,cc) STRINGIFY(aa ## bb ## cc)
+//
+////#define CONCAT2( _a , _b )     _a _b
+////#define CONCAT_SEM( _a , _b )  STRINGIFY( _a._b )
+//
+////#define CONCAT(  _a , _b )     CONCAT3( _a ,_b )
+//
+//
+////#define  SVR_TIME() STRINGIFY(srvtime)
+//#define  SVR_TIME           srvtime
+//
+//#define SVC_GETDATE         getdate
+//#define SVC_SETDATE         setdate
+//#define SVC_SIGNALDATE      signaldate
+//
+//#define SVR_TIME_GETDATE_CONCAT(aa,bb)   STRINGIFY_3( aa , . , bb )
+//
+//#define SVR_TIME_GETDATE                    SVR_TIME_GETDATE_CONCAT( SVR_TIME , SVC_GETDATE )
+////#define SVR_TIME_SETDATE                    SVR_TIME_GETDATE_CONCAT( SVR_TIME , SVC_SETDATE )
+////
+////#define SVR_TIME_GETDATE_CONCAT_SEM(aa , bb)    STRINGIFY3( aa , _ , bb )
+////#define SVR_TIME_GETDATE_SEM                   SVR_TIME_GETDATE_CONCAT_SEM( SVR_TIME,SVC_GETDATE )
+
+
+#define STRINGIFY(x) #x
+#define STRINGIFY_2(aa,bb)      STRINGIFY(aa ## bb)
+#define STRINGIFY_3(aa,bb,cc)   STRINGIFY(aa ## bb ## cc)
+
+#define CONCAT2(_a,_b) _a _b
+#define CONCAT_SEM(_a,_b) STRINGIFY( _a._b )
+
+
+
+
+
+#define SVR_TIME srvtime
+
+#define SVC_GETDATE getdate
+#define SVC_SETDATE setdate
+#define SVC_SIGNALDATE signaldate
+
+#define CONCAT_POINT(_a,_b) STRINGIFY( _a._b ) // ok "."
+#define CONCAT_U(aa,bb) STRINGIFY_3( aa , _ , bb ) // ok "_"
+
+
+#define SVR_TIME_GETDATE CONCAT_POINT( SVR_TIME,SVC_GETDATE )
+#define SVR_TIME_SETDATE CONCAT_POINT( SVR_TIME,SVC_SETDATE )
+
+#define SVR_TIME_GETDATE_SEM CONCAT_U( SVR_TIME,SVC_GETDATE )
+
+
+
+
+
+int check_preprocessor()
+{
+
+    //printf("%s  \n",SVR_TIME_GETDATE_SEM);
+    printf("%s  \n",SVR_TIME_GETDATE);
+    printf("%s  \n",SVR_TIME_SETDATE);
+    printf("%s  \n",SVR_TIME_GETDATE_SEM);
+    return 0;
+}
+
+int check_mq(void) {
 
     int result = 0;
     struct mq_attr  vAttr   = {0};
@@ -40,4 +107,12 @@ int main(void) {
 
 
     return EXIT_SUCCESS;
+}
+
+int main(void)
+{
+
+    // check_mq();
+    check_preprocessor();
+
 }
