@@ -37,13 +37,13 @@
 int libmessage_srvtime_wait()
 {
     TRACE_IN("_IN")
-    int result = 0;
+                    int result = 0;
 
     // joint thread 1
     pthread_join(getTheadCtx(eLIBMSG_ID_GETDATA)->pthreadID,0);
     pthread_join(getTheadCtx(eLIBMSG_ID_SETDATA)->pthreadID,0);
-    // joint thread 2
-    // joint thread 3
+    pthread_join(getTheadCtx(eLIBMSG_ID_SIGNAL)->pthreadID,0);
+
 
     TRACE_OUT("_OUT result=%d",result)
 
@@ -88,20 +88,19 @@ int libmessage_srvtime_register_signaldate(libmessage_pFunctCB_t a_pFunctCB)
 
 //************************************************************
 //  client side
+//      _OUT_ double *a_pDate : buffer data output
 //      return:
 //          SUCCESS    0
 //          EINVAL          22  Invalid argument
 //************************************************************
-int libmessage_getdate(
-        _IN_  const char *a_Callername,   // address fifo name to respond
-        _OUT_ double     *a_pDate)        // buffer data output
+int libmessage_getdate(_OUT_ double     *a_pDate)
 {
     int         result                          = SUCCESS;
     char        msgbuffer[APISYSLOG_MSG_SIZE]   = {0};
 
     sDataService_t vDataService = {0};
 
-    if( (!a_Callername) || (!*a_Callername) || (!a_pDate) )
+    if( (!a_pDate) )
     {
         result = EINVAL ;
 
@@ -116,7 +115,7 @@ int libmessage_getdate(
 
     if( SUCCESS == result )
     {
-        strcpy(vDataService.filenameClientSuffix,a_Callername);
+        getFifoname(vDataService.request.filenameClient);
 
         strcpy(vDataService.filenameServer,getNameService(eLIBMSG_ID_GETDATA,eLIBMSG_COL_SRV_FILENAME));
 
@@ -144,10 +143,10 @@ int libmessage_getdate(
         result = libmessage_svc_getdata(&vDataService);
     }
 
-    if( 0 < result )
+    if( SUCCESS == result )
     {
         *a_pDate = (    (double)vDataService.response.uResponse.getdate.timespesc.tv_sec)
-                + ((double)vDataService.response.uResponse.getdate.timespesc.tv_nsec*1e-9);
+                                + ((double)vDataService.response.uResponse.getdate.timespesc.tv_nsec*1e-9);
 
         TRACE_DBG1("%s : getdate = %ld.%09ld",
                 __FUNCTION__,
@@ -161,13 +160,12 @@ int libmessage_getdate(
 
 //************************************************************
 //  client side
+//      _OUT_ double *a_pDate : buffer data output
 //      return:
 //          SUCCESS    0
 //          EINVAL          22  Invalid argument
 //************************************************************
-int libmessage_setdate(
-        _IN_  const char *a_Callername,   // address fifo name to respond
-        _IN_    double     a_pDate)        // buffer data output
+int libmessage_setdate( _IN_ double  a_Date)
 {
     int result = SUCCESS;
 
@@ -175,22 +173,9 @@ int libmessage_setdate(
 
     sDataService_t vDataService = {0};
 
-    if( (!a_Callername) || (!*a_Callername) || (!a_pDate) )
-    {
-        result = EINVAL ;
-
-        snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
-                " : Invalid argument error =%d %s",
-
-                result,strerror(result));
-
-        fprintf(stderr,"%s : %s \n",__FUNCTION__, msgbuffer);
-        TRACE_ERR(msgbuffer);
-    }
-
     if( SUCCESS == result )
     {
-        strcpy(vDataService.filenameClientSuffix,a_Callername);
+        getFifoname(vDataService.request.filenameClient);
 
         strcpy(vDataService.filenameServer,getNameService(eLIBMSG_ID_SETDATA,eLIBMSG_COL_SRV_FILENAME));
 
@@ -202,6 +187,75 @@ int libmessage_setdate(
             snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
                     ": sem_open(%s) result=0x%p errno=%d %s",
                     getNameService(eLIBMSG_ID_SETDATA,eLIBMSG_COL_SRV_FILENAME),
+                    (void*)vDataService.pSemsvc,
+                    errno,strerror(errno));
+            fprintf(stderr,"%s : %s \n",__FUNCTION__, msgbuffer);
+            TRACE_ERR(msgbuffer);
+
+            result = errno;
+        }
+
+        vDataService.pFunctCB = 0;
+    }
+
+    if( SUCCESS == result )
+    {
+        vDataService.request.uRequest.setdate.timespesc.tv_sec  = (__time_t)a_Date;
+        vDataService.request.uRequest.setdate.timespesc.tv_nsec =
+                (a_Date - vDataService.request.uRequest.setdate.timespesc.tv_sec)
+                *1e9;
+
+        result = libmessage_svc_getdata(&vDataService);
+    }
+
+    if( SUCCESS == result )
+    {
+        if(SUCCESS != vDataService.response.result)
+        {
+            TRACE_ERR(" service error = %d %s",
+                    vDataService.response.result,
+                    strerror(vDataService.response.result));
+
+        }
+        result = vDataService.response.result;
+    }
+    else
+    {
+    }
+
+    return result ;
+}
+
+//************************************************************
+//  client side
+//      return:
+//          SUCCESS    0
+//          EINVAL          22  Invalid argument
+//************************************************************
+int libmessage_signaldate(
+        _IN_    double     a_Date,         // buffer data output
+        _IN_    libmessage_pFunctSignalCB_t a_pFunct)// callback
+{
+    int result = SUCCESS;
+
+    char msgbuffer[APISYSLOG_MSG_SIZE] = {0};
+
+    sDataService_t vDataService = {0};
+
+    if( SUCCESS == result )
+    {
+        getFifoname(vDataService.request.filenameClient);
+
+        strcpy(vDataService.filenameServer,getNameService(eLIBMSG_ID_SIGNAL,eLIBMSG_COL_SRV_FILENAME));
+
+        errno = 0;
+        vDataService.pSemsvc = sem_open(getNameService(eLIBMSG_ID_SIGNAL,eLIBMSG_COL_SEM),0);
+
+        if( SEM_FAILED == vDataService.pSemsvc)
+        {
+            snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
+                    ": sem_open(%s) result=0x%p errno=%d %s",
+                    getNameService(eLIBMSG_ID_SIGNAL,eLIBMSG_COL_SRV_FILENAME),
                     (void*)vDataService.pSemsvc,
                     errno,strerror(errno));
             fprintf(stderr,"%s : %s \n",__FUNCTION__, msgbuffer);
@@ -233,5 +287,11 @@ int libmessage_setdate(
     {
     }
 
+    //*********************************************************
+    //  create thread for callback
+    //*********************************************************
+    if( SUCCESS == result )
+    {
+    }
     return result ;
 }

@@ -12,6 +12,8 @@
 
 #include "libmessage.h"
 
+typedef int (*libmessage_pFunctSignalCB_t)(const struct timespec);
+
 
 //*****************************************************
 struct sGetdateRequest
@@ -63,33 +65,54 @@ typedef struct sSignaldateResponse  sSignaldateResponse_t;
 
 
 
-int libmessage_srvtime_wait();
-
 //******************************************************
-//  service time part client
+//*
+//*             service time part client
+//*
 //******************************************************
 //************************************************************
 //  client side
 //      return:
 //          SUCCESS    0
 //          EINVAL          22  Invalid argument
+//          errors ...
 //************************************************************
-int libmessage_getdate(
-        _IN_  const char *a_Callername,   // address fifo name to respond
-        _OUT_ double     *a_pDate);        // buffer data output
+int libmessage_getdate(_OUT_ double *a_pDate);        // buffer data output
 
-int libmessage_setdate(
-        _IN_  const char *a_Callername,   // address fifo name to respond
-        _IN_ double     a_Date);        // buffer data output
+//************************************************************
+//  client side
+//      IN_ double a_Date   : buffer data output
+//      return:
+//          SUCCESS    0
+//          EINVAL          22  Invalid argument
+//          errors ...
+//************************************************************
+int libmessage_setdate(_IN_ double a_Date); // buffer data output
+//************************************************************
+//  client side
+//      IN_ double a_Date   : buffer data output
+//      return:
+//          SUCCESS    0
+//          EINVAL          22  Invalid argument
+//          errors ...
+//************************************************************
+int libmessage_signaldate(
+        _IN_    double     a_Date,         // buffer data output
+        _IN_    libmessage_pFunctSignalCB_t a_pFunct);// callback
 
 //******************************************************
-//  service time part SERVER
+//*
+//*
+//*          service time part SERVER
+//*
+//*
 //******************************************************
 
 int libmessage_srvtime_register_getdate(libmessage_pFunctCB_t a_pFunctCB);
 int libmessage_srvtime_register_setdate(libmessage_pFunctCB_t a_pFunctCB);
 int libmessage_srvtime_register_signaldate(libmessage_pFunctCB_t a_pFunctCB);
 
+int libmessage_srvtime_wait();
 
 
 #endif /* INC_LIBMESSAGE_SVC_TIME_H_ */

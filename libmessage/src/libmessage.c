@@ -168,11 +168,6 @@ int libmessage_svc_getdata(sDataService_t *a_pDataService)
     //*********************************************************
     //          create client fifo
     //*********************************************************
-    vSize =  NAME_MAX -1 - strlen("/tmp/client.");
-     snprintf(a_pDataService->request.filenameClient,
-             vSize,
-             "/tmp/client.%s",
-             a_pDataService->filenameClientSuffix);
 
     result = libmessage_mkfifo(a_pDataService->request.filenameClient);
 
@@ -328,8 +323,8 @@ int libmessage_svc_getdata(sDataService_t *a_pDataService)
 
         if( 0 == result )
         {
-            snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
-                    " : _4_ read(%d,%s,%d) Error client fifo result == 0  ",
+            snprintf(msgbuffer,APISYSLOG_MSG_SIZE-1,
+                    " : _4_ read(%d,%.50s,%d) Error client fifo result == 0  ",
                     vPollfdClient.fd,
                     a_pDataService->request.filenameClient,
                     vSize);
@@ -339,8 +334,8 @@ int libmessage_svc_getdata(sDataService_t *a_pDataService)
         }
         else if (-1 == result )
         {
-            snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
-                    ": _41_ read(%d,%s,%d) error client %d %s",
+            snprintf(msgbuffer,APISYSLOG_MSG_SIZE-1,
+                    ": _41_ read(%d,%.50s,%d) error client %d %s",
                     vPollfdClient.fd,
                     a_pDataService->request.filenameClient,
                     vSize,errno,strerror(errno));
@@ -361,6 +356,8 @@ int libmessage_svc_getdata(sDataService_t *a_pDataService)
 
     if( -1 != vPollfdClient.fd)
         close(vPollfdClient.fd);
+
+    unlink(a_pDataService->request.filenameClient);
 
     return result;
 }
@@ -474,7 +471,7 @@ void * libmessage_threadFunction_srv(void * a_pArg)
             if( 0 == result )
             {
                 snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
-                        " : _6_ read(%d,%s,%d) err=%d result == 0 ",
+                        " : _6_ read(%d,%.50s,%d) err=%d result == 0 ",
                         fdServer,
                         pContext->dataService.request.filenameClient,
                         sizebuffer, errno);
@@ -486,7 +483,7 @@ void * libmessage_threadFunction_srv(void * a_pArg)
             else if (-1 == result )
             {
                 snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
-                        " : _7_ read(%d,%s,%d) Error %d %s ",
+                        " : _7_ read(%d,%.50s,%d) Error %d %s ",
                         fdServer,
                         pContext->dataService.request.filenameClient,
                         sizebuffer,errno,strerror(errno));
@@ -496,7 +493,7 @@ void * libmessage_threadFunction_srv(void * a_pArg)
             }
             else
             {
-                TRACE_DBG1(" : _8_ read(%d,%s,%d) result=%d",
+                TRACE_DBG1(" : _8_ read(%d,%.50s,%d) result=%d",
                         fdServer,
                         pContext->dataService.request.filenameClient,
                         sizebuffer,result);
@@ -515,7 +512,7 @@ void * libmessage_threadFunction_srv(void * a_pArg)
             if( -1 == fdClient  )
             {
                 snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
-                        " : _9_ open(%s) err=%d %s ",
+                        " : _9_ open(%.50s) err=%d %s ",
                         pContext->dataService.request.filenameClient
                         ,errno,strerror(errno));
                 result = errno;
@@ -550,7 +547,7 @@ void * libmessage_threadFunction_srv(void * a_pArg)
             if(-1 ==  result)
             {
                 snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
-                        " : _10_ write(%d,%s,%d) err=%d %s \n",
+                        " : _10_ write(%d,%.50s,%d) err=%d %s \n",
                         fdClient,
                         pContext->dataService.request.filenameClient,
                         sizebuffer, errno,strerror(errno));

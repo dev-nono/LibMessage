@@ -75,8 +75,7 @@ typedef struct sResponse sResponse_t;
 struct sRequest
 //*****************************************************
 {
-    //int     result;
-    char    filenameClient[NAME_MAX+(1)];
+    char                    filenameClient[PATH_MAX];
 
     union
     {
@@ -94,7 +93,6 @@ struct sDataService
 //*****************************************************
 {
     char                    filenameServer[NAME_MAX+(1)];
-    char                    filenameClientSuffix[NAME_MAX+(1)];
 
     libmessage_pFunctCB_t   pFunctCB;
     int                     id;

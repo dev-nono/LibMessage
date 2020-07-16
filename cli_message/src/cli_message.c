@@ -14,6 +14,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <errno.h>
+#include <limits.h>
 
 
 #include "utils.h"
@@ -25,7 +26,9 @@
 #define MAX_ARRAY (10U)
 
 
+//******************************************************************
 int check_getDateLoop(char* a_fifoName)
+//******************************************************************
 {
     int     result = SUCCESS;
     double  arrayDate[MAX_ARRAY] = {0.0};
@@ -58,7 +61,7 @@ int check_getDateLoop(char* a_fifoName)
         }
 
         value = 0.0;
-        result = libmessage_getdate(a_fifoName,&value);
+        result = libmessage_getdate(&value);
         arrayDate[counter] = value;
 
     }while(1);
@@ -68,7 +71,9 @@ int check_getDateLoop(char* a_fifoName)
     return result;
 
 }
+//******************************************************************
 int check_getDateSleep(char* a_fifoName)
+//******************************************************************
 {
     int     result = SUCCESS;
     double  value = 0.0;
@@ -79,7 +84,7 @@ int check_getDateSleep(char* a_fifoName)
         sleep(1);
 
         value = 0.0;
-        result = libmessage_getdate(a_fifoName,&value);
+        result = libmessage_getdate(&value);
         printf("%0.9f\n",value);
 
     }while(1);
@@ -87,8 +92,9 @@ int check_getDateSleep(char* a_fifoName)
 
     return result;
 }
-
+//******************************************************************
 int check_setDateSleep(char* a_fifoName)
+//******************************************************************
 {
     int     result = SUCCESS;
     double  value = 0.0;
@@ -99,7 +105,7 @@ int check_setDateSleep(char* a_fifoName)
         sleep(1);
 
         value = 1.1234567890123;
-        result = libmessage_setdate(a_fifoName,value);
+        result = libmessage_setdate(value);
 
         printf("%s : %d %s \n",__FUNCTION__,
                 result,strerror(result));
@@ -110,17 +116,42 @@ int check_setDateSleep(char* a_fifoName)
     return result;
 }
 
+static int pFunctSignalCB(const struct timespec a_timespec)
+{
+    (void)a_timespec;
+
+    return 0;
+}
+
+//******************************************************************
+int check_signalDate(char* a_fifoName)
+//******************************************************************
+{
+    int     result = SUCCESS;
+
+    double vFreq = 1.0;
+
+    result = libmessage_signaldate(vFreq,&pFunctSignalCB);
+
+    // wait for anything
+
+    return result;
+
+}
 int main(int argc, char *argv[])
 {
     int     result = SUCCESS;
+
+    char vProcessname[NAME_MAX];
 
     apisyslog_init("");
 
     if( argc > 1 )
     {
-        //check_getDateSleep(argv[1]);
+        check_getDateSleep(argv[1]);
         //check_getDateLoop(argv[1]);
-        check_setDateSleep(argv[1]);
+        //check_setDateSleep(argv[1]);
+        //check_signalDate(argv[1]);
     }
     else
     {

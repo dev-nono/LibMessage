@@ -1,0 +1,9 @@
+
+
+client      client_1.pid   toto_1.123456
+
+client      client_1.svc_1.pid   
+
+server      srvtime_getdate
+
+/tmp/basename.TID
