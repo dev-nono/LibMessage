@@ -202,6 +202,9 @@ int libmessage_getdate(_OUT_ double     *a_pDate)
 
     if( SUCCESS == result )
     {
+        g_DataService_getdata.request.header.datasize =
+                    sizeof(g_DataService_getdata.request);
+
         result = libmessage_svc_client_getdata(&g_DataService_getdata);
     }
 
@@ -213,8 +216,7 @@ int libmessage_getdate(_OUT_ double     *a_pDate)
         *a_pDate = (    (double)pResponse->timespesc.tv_sec)
                     + ((double)pResponse->timespesc.tv_nsec*1e-9);
 
-        TRACE_DBG1("%s : getdate = %ld.%09ld",
-                __FUNCTION__,
+        TRACE_DBG1(" : '%ld.%09ld",
                 pResponse->timespesc.tv_sec,
                 pResponse->timespesc.tv_nsec);
     }
@@ -262,15 +264,14 @@ int libmessage_setdate( _IN_ double  a_Date)
 
         vDataService.pFunctCB = 0;
     }
+        /* TODO
 
     if( SUCCESS == result )
     {
-        /* TODO
         vDataService.request.uRequest.setdate.timespesc.tv_sec  = (__time_t)a_Date;
         vDataService.request.uRequest.setdate.timespesc.tv_nsec =
                 (a_Date - vDataService.request.uRequest.setdate.timespesc.tv_sec)
                 *1e9;
-TODO */
         result = libmessage_svc_client_getdata(&vDataService);
     }
 
@@ -288,6 +289,7 @@ TODO */
     else
     {
     }
+TODO */
 
     return result ;
 }

@@ -6,6 +6,7 @@
  */
 
 
+#include <stdlib.h>
 #include <errno.h>
 #include <pthread.h>
 #include <string.h>
@@ -18,10 +19,7 @@
 #include "apisyslog.h"
 #include <utils.h>
 
-//#include "libmessage_svc_time.h"
 #include "libmessage_int.h"
-
-
 
 
 static sThreadCtx_t g_ThreadCtxSignal = {0};
@@ -334,7 +332,7 @@ int libmessage_svc_client_getdata(sDataService_t *a_pDataService)
     if( 0 == result )
     {
         //send request to server endpoint
-        vSize = sizeof(a_pDataService->request);
+        vSize = a_pDataService->request.header.datasize;
         errno = 0;
         result = write(fdServer,
                 (char*)&a_pDataService->request,
@@ -425,7 +423,6 @@ int libmessage_svc_client_getdata(sDataService_t *a_pDataService)
             result = 0;
         }
     }
-
     //*********************************************************
     //          read response from server
     //*********************************************************
@@ -657,7 +654,8 @@ static void * libmessage_threadFunction_server(void * a_pArg)
         //*********************************************************
         if( 0 == result )
         {
-            sizebuffer = sizeof(pContext->dataService.response);
+            sizebuffer = pContext->dataService.response.header.datasize;
+
             result = write(fdClient,
                     &pContext->dataService.response,
                     sizebuffer);

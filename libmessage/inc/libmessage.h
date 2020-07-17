@@ -27,15 +27,22 @@ enum eLIBMSG_COL
 };
 typedef enum eLIBMSG_COL eLIBMSG_COL_t;
 
+//*****************************************************
+struct sHeader
+//*****************************************************
+{
+    int         result;
+    uint32_t    datasize;
+};
+typedef struct sHeader sHeader_t;
 
 //*****************************************************
 struct sRequest
 //*****************************************************
 {
-    char        filenameClient[PATH_MAX];
-    int         result;
-    uint32_t    datasize;
+    sHeader_t   header;
 
+    char filenameClient[PATH_MAX];
     char data __flexarr;    /* Name.  */
 
 };
@@ -45,10 +52,8 @@ typedef struct sRequest sRequest_t;
 struct sResponse
 //*****************************************************
 {
-    int         result;
-    uint32_t    datasize;
-
-    char data __flexarr;    /* Name.  */
+    sHeader_t   header;
+    char        data[PIPE_BUF] ;// __flexarr;    /* Name.  */
 
 };
 typedef struct sResponse sResponse_t;
@@ -63,8 +68,6 @@ struct sDataService
     libmessage_pFunctCB_t   pFunctCB;
     int                     id;
     sem_t                   *pSemsvc;
-
-    char            databuffer[PIPE_BUF];
 
     sRequest_t     request;
     sResponse_t    response;
