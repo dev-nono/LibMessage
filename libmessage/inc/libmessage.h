@@ -43,7 +43,8 @@ struct sRequest
     sHeader_t   header;
 
     char filenameClient[PATH_MAX];
-    char data __flexarr;    /* Name.  */
+//    char data __flexarr;    /* Name.  */
+    char        data[PIPE_BUF] ;// __flexarr;    /* Name.  */
 
 };
 typedef struct sRequest sRequest_t;

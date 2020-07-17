@@ -107,7 +107,8 @@ int check_setDateSleep(char* a_fifoName)
         value = 1.1234567890123;
         result = libmessage_setdate(value);
 
-        printf("%s : %d %s \n",__FUNCTION__,
+        printf("%s : %d %s \n",
+                __FUNCTION__,
                 result,strerror(result));
 
     }while(1);
@@ -148,9 +149,11 @@ int main(int argc, char *argv[])
 
     if( argc > 1 )
     {
-        check_getDateSleep(argv[1]);
+        //check_getDateSleep(argv[1]);
         //check_getDateLoop(argv[1]);
-        //check_setDateSleep(argv[1]);
+
+        check_setDateSleep(argv[1]);
+
         //check_signalDate(argv[1]);
     }
     else

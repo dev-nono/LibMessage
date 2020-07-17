@@ -264,32 +264,34 @@ int libmessage_setdate( _IN_ double  a_Date)
 
         vDataService.pFunctCB = 0;
     }
-        /* TODO
+
 
     if( SUCCESS == result )
     {
-        vDataService.request.uRequest.setdate.timespesc.tv_sec  = (__time_t)a_Date;
-        vDataService.request.uRequest.setdate.timespesc.tv_nsec =
-                (a_Date - vDataService.request.uRequest.setdate.timespesc.tv_sec)
-                *1e9;
+        vDataService.request.header.datasize = sizeof(sRequest_t);
+
+        sSetdateRequest_t *pDada = (sSetdateRequest_t*)&vDataService.request.data;
+
+        pDada->timespesc.tv_sec  = (__time_t)a_Date;
+        pDada->timespesc.tv_nsec = (a_Date - pDada->timespesc.tv_sec) *1e9;
+
         result = libmessage_svc_client_getdata(&vDataService);
     }
 
     if( SUCCESS == result )
     {
-        if(SUCCESS != vDataService.response.result)
+        if(SUCCESS != vDataService.response.header.result)
         {
             TRACE_ERR(" service error = %d %s",
-                    vDataService.response.result,
-                    strerror(vDataService.response.result));
+                    vDataService.response.header.result,
+                    strerror(vDataService.response.header.result));
 
         }
-        result = vDataService.response.result;
+        result = vDataService.response.header.result;
     }
     else
     {
     }
-TODO */
 
     return result ;
 }

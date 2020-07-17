@@ -44,15 +44,19 @@
      sRequest_t *  pRequest   = (sRequest_t*) a_pRequest;
      sResponse_t * pResponse  = (sResponse_t*)a_pResponse;
 
-     pResponse->header.result = ENODATA;
+     sSetdateRequest_t *pData = (sSetdateRequest_t*)&pRequest->data;
 
- /* TODO
+     pResponse->header.result = result;
+
+     pResponse->header.datasize = sizeof(sHeader_t);
+
+
      snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
              " : setdate=%ld.%09ld result=%d\n",
-             pRequest->uRequest.setdate.timespesc.tv_sec,
-             pRequest->uRequest.setdate.timespesc.tv_nsec,
+             pData->timespesc.tv_sec,
+             pData->timespesc.tv_nsec,
              result);
-TODO */
+
 
      TRACE_LOG(msgbuffer);
 
@@ -107,7 +111,7 @@ int main(int argc, char *argv[])
     //
     //
     result = libmessage_srvtime_register_getdate(&libmessage_cbfcnt_getdate);
-    //result = libmessage_srvtime_register_setdate(&libmessage_cbfcnt_setdate);
+    result = libmessage_srvtime_register_setdate(&libmessage_cbfcnt_setdate);
 //    result = libmessage_srvtime_register_signaldate(&libmessage_cbfcnt_signaldate);
 
 
