@@ -7,3 +7,5 @@ client      client_1.svc_1.pid
 server      srvtime_getdate
 
 /tmp/basename.TID
+
+client1.srv1_signal_1

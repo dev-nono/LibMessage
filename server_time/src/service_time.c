@@ -17,7 +17,7 @@
 #include "utils.h"
 
 #include <errno.h>
-#include "libmessage_int.h"
+//#include "libmessage_int.h"
 #include "libmessage_svc_time.h"
 
 
@@ -46,12 +46,13 @@
 
      pResponse->result = ENODATA;
 
+ /* TODO
      snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
              " : setdate=%ld.%09ld result=%d\n",
              pRequest->uRequest.setdate.timespesc.tv_sec,
              pRequest->uRequest.setdate.timespesc.tv_nsec,
              result);
-
+TODO */
 
      TRACE_LOG(msgbuffer);
 
@@ -64,19 +65,20 @@ static int libmessage_cbfcnt_getdate( const    void * a_pRequest,
     int result = 0;
     char msgbuffer[APISYSLOG_MSG_SIZE] = {0};
 
-    sRequest_t *  pRequest   = (sRequest_t*) a_pRequest;
+    //sRequest_t *  pRequest   = (sRequest_t*) a_pRequest;
+    (void)a_pRequest;
+
     sResponse_t * pResponse  = (sResponse_t*)a_pResponse;
 
-    (void)pRequest;
-
+    sGetdateResponse_t * pGetdataResponse = (sGetdateResponse_t *)pResponse->data;
 
     result = clock_gettime(CLOCK_MONOTONIC_RAW,
-            &pResponse->uResponse.getdate.timespesc);
+            &pGetdataResponse->timespesc);
 
     snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
             " : date=%ld.%09ld len=%d\n",
-            pResponse->uResponse.getdate.timespesc.tv_sec,
-            pResponse->uResponse.getdate.timespesc.tv_nsec,
+            pGetdataResponse->timespesc.tv_sec,
+            pGetdataResponse->timespesc.tv_nsec,
             result);
 
     pResponse->result = result;

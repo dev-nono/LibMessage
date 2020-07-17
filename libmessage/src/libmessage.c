@@ -18,65 +18,87 @@
 #include "apisyslog.h"
 #include <utils.h>
 
-#include "libmessage_svc_time.h"
+//#include "libmessage_svc_time.h"
 #include "libmessage_int.h"
 
 
 
-static sDataThreadCtx_t g_arrayTheadCtx[eLIBMSG_ID_END]= {0};
 
-static char  g_arrayNameService[eLIBMSG_ID_END][3][NAME_MAX]=
+static sThreadCtx_t g_ThreadCtxSignal = {0};
+
+
+
+
+//************************************************************
+//*             incoming event signal
+//************************************************************
+static void * libmessage_client_threadFunction_signal(void * a_pArg)
 {
-        {SVC_TIME_GETDATE_PREFIX,      SVR_TIME_GETDATE_SEM,    SRV_TIME_GETDATE_FILENAME},
-        {SVC_TIME_SETDATE_PREFIX,      SVR_TIME_SETDATE_SEM,    SRV_TIME_SETDATE_FILENAME},
-        {SVC_TIME_SIGNALDATE_PREFIX,   SVR_TIME_SIGNALDATE_SEM, SRV_TIME_SIGNALDATE_FILENAME}
+    (void)a_pArg;
 
-};
+    do
+    {
 
-sDataThreadCtx_t *getTheadCtx(eLIBMSG_ID_t a_ID)
+    }while(1);
+
+    return (void*)0;
+}
+//************************************************************
+//*
+//************************************************************
+int libmessage_client_register_signal(sDataService_t *a_pDataService_t)
 {
-    return &g_arrayTheadCtx[a_ID];
+    int result = 0;
+
+    return result;
 }
 
-const char *getNameService(eLIBMSG_ID_t a_ID,eLIBMSG_COL_t a_ColID)
+//************************************************************
+//*
+//************************************************************
+int libmessage_client_initialize()
 {
-    return g_arrayNameService[a_ID][a_ColID];
+    TRACE_IN("_IN");
+    int result = 0;
+    char msgbuffer[APISYSLOG_MSG_SIZE] = {0};
+
+    errno = 0;
+    result =  pthread_create(&g_ThreadCtxSignal.pthreadID,
+            NULL,
+            &libmessage_client_threadFunction_signal,
+            0);
+
+    if( 0 != result )
+    {
+        snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
+                ": pthread_create() error =%d %s",
+                result,strerror(result));
+
+        fprintf(stderr,"%s : %s \n",__FUNCTION__, msgbuffer);
+        TRACE_ERR(msgbuffer);
+    }
+
+    TRACE_OUT("_OUT result=%d",result)
+
+    return result;
 
 }
 //************************************************************
 //*
 //************************************************************
-int libmessage_srvtime_register_svc(    eLIBMSG_ID_t            a_MessageID,
-                                        libmessage_pFunctCB_t   a_pFunctCB )
+int libmessage_server_register_svc(sDataThreadCtx_t *a_pDataThreadCtx)
 {
     int result = 0;
-    sDataThreadCtx_t *pDataThreadCtx = 0;
+ //   sDataThreadCtx_t *pDataThreadCtx = a_pDataThreadCtx;
     char msgbuffer[APISYSLOG_MSG_SIZE] = {0};
 
-    if( (a_MessageID < 0) || (a_MessageID >=  eLIBMSG_ID_END) )
-    {
-        result = EINVAL;
-    }
-
     //*****************************
     // prepare data thread
     //*****************************
-    if( 0 == result )
-    {
-        pDataThreadCtx = getTheadCtx(a_MessageID);
-    }
-
-    //*****************************
-    // prepare data thread
-    //*****************************
-    if( 0 == result )
-    {
-        pDataThreadCtx->dataService.pFunctCB = a_pFunctCB;
-
-        strncpy(pDataThreadCtx->dataService.filenameServer,
-                getNameService(a_MessageID,eLIBMSG_COL_SRV_FILENAME),
-                sizeof(pDataThreadCtx->dataService.filenameServer)-1);
-    }
+//    if( 0 == result )
+//    {
+//        pDataThreadCtx = getTheadCtx(a_MessageID);
+//    }
 
     //**************************************************
     //*  create semaphore
@@ -84,12 +106,12 @@ int libmessage_srvtime_register_svc(    eLIBMSG_ID_t            a_MessageID,
     if( 0 == result )
     {
         errno = 0;
-        result = sem_unlink(getNameService(a_MessageID,eLIBMSG_COL_SEM));
+        result = sem_unlink(a_pDataThreadCtx->dataService.filenameSemaphore);
         if( 0 != result )
         {
             snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
                     ": sem_unlink(%s) result=%d errno=%d %s",
-                    getNameService(a_MessageID,eLIBMSG_COL_SEM),
+                    a_pDataThreadCtx->dataService.filenameSemaphore,
                     result,errno,strerror(errno));
 
             fprintf(stderr,"%s : %s \n",__FUNCTION__, msgbuffer);
@@ -98,15 +120,15 @@ int libmessage_srvtime_register_svc(    eLIBMSG_ID_t            a_MessageID,
 
         result = 0;
         errno = 0;
-        pDataThreadCtx->dataService.pSemsvc = sem_open(
-                getNameService(a_MessageID,eLIBMSG_COL_SEM),
+        a_pDataThreadCtx->dataService.pSemsvc = sem_open(
+                a_pDataThreadCtx->dataService.filenameSemaphore,
                 O_CREAT,S_IRWXU,1U);
-        if( SEM_FAILED == pDataThreadCtx->dataService.pSemsvc)
+        if( SEM_FAILED == a_pDataThreadCtx->dataService.pSemsvc)
         {
             snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
                     "sem_open(%s) result=0x%p errno=%d %s",
-                    getNameService(a_MessageID,eLIBMSG_COL_SEM),
-                    (void*)pDataThreadCtx->dataService.pSemsvc,
+                    a_pDataThreadCtx->dataService.filenameSemaphore,
+                    (void*)a_pDataThreadCtx->dataService.pSemsvc,
                     errno,strerror(errno));
 
             fprintf(stderr,"%s : %s\n",__FUNCTION__, msgbuffer);
@@ -120,10 +142,10 @@ int libmessage_srvtime_register_svc(    eLIBMSG_ID_t            a_MessageID,
         // create new tread for listening incomming messages
         //*****************************
         errno = 0;
-        result =  pthread_create(&pDataThreadCtx->pthreadID,
+        result =  pthread_create(&a_pDataThreadCtx->pthreadID,
                 NULL,
-                &libmessage_threadFunction_srv,
-                (void*)pDataThreadCtx);
+                &libmessage_threadFunction_server,
+                (void*)a_pDataThreadCtx);
 
         if( 0 != result )
         {
@@ -138,6 +160,101 @@ int libmessage_srvtime_register_svc(    eLIBMSG_ID_t            a_MessageID,
     }
     return result;
 }
+////************************************************************
+////*
+////************************************************************
+//int libmessage_srvtime_register_svc(    eLIBMSG_ID_t            a_MessageID,
+//                                        libmessage_pFunctCB_t   a_pFunctCB )
+//{
+//    int result = 0;
+//    sDataThreadCtx_t *pDataThreadCtx = 0;
+//    char msgbuffer[APISYSLOG_MSG_SIZE] = {0};
+//
+//    if( (a_MessageID < 0) || (a_MessageID >=  eLIBMSG_ID_END) )
+//    {
+//        result = EINVAL;
+//    }
+//
+//    //*****************************
+//    // prepare data thread
+//    //*****************************
+//    if( 0 == result )
+//    {
+//        pDataThreadCtx = getTheadCtx(a_MessageID);
+//    }
+//
+//    //*****************************
+//    // prepare data thread
+//    //*****************************
+//    if( 0 == result )
+//    {
+//        pDataThreadCtx->dataService.pFunctCB = a_pFunctCB;
+//
+//        strncpy(pDataThreadCtx->dataService.filenameServer,
+//                getNameService(a_MessageID,eLIBMSG_COL_SRV_FILENAME),
+//                sizeof(pDataThreadCtx->dataService.filenameServer)-1);
+//    }
+//
+//    //**************************************************
+//    //*  create semaphore
+//    //**************************************************
+//    if( 0 == result )
+//    {
+//        errno = 0;
+//        result = sem_unlink(getNameService(a_MessageID,eLIBMSG_COL_SEM));
+//        if( 0 != result )
+//        {
+//            snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
+//                    ": sem_unlink(%s) result=%d errno=%d %s",
+//                    getNameService(a_MessageID,eLIBMSG_COL_SEM),
+//                    result,errno,strerror(errno));
+//
+//            fprintf(stderr,"%s : %s \n",__FUNCTION__, msgbuffer);
+//            TRACE_ERR(msgbuffer);
+//        }
+//
+//        result = 0;
+//        errno = 0;
+//        pDataThreadCtx->dataService.pSemsvc = sem_open(
+//                getNameService(a_MessageID,eLIBMSG_COL_SEM),
+//                O_CREAT,S_IRWXU,1U);
+//        if( SEM_FAILED == pDataThreadCtx->dataService.pSemsvc)
+//        {
+//            snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
+//                    "sem_open(%s) result=0x%p errno=%d %s",
+//                    getNameService(a_MessageID,eLIBMSG_COL_SEM),
+//                    (void*)pDataThreadCtx->dataService.pSemsvc,
+//                    errno,strerror(errno));
+//
+//            fprintf(stderr,"%s : %s\n",__FUNCTION__, msgbuffer);
+//            TRACE_ERR(msgbuffer);
+//        }
+//    }
+//
+//    if( 0 == result )
+//    {
+//       //*****************************
+//        // create new tread for listening incomming messages
+//        //*****************************
+//        errno = 0;
+//        result =  pthread_create(&pDataThreadCtx->pthreadID,
+//                NULL,
+//                &libmessage_threadFunction_srv,
+//                (void*)pDataThreadCtx);
+//
+//        if( 0 != result )
+//        {
+//
+//            snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
+//                    ": pthread_create() error =%d %s",
+//                    result,strerror(result));
+//
+//            fprintf(stderr,"%s : %s \n",__FUNCTION__, msgbuffer);
+//            TRACE_ERR(msgbuffer);
+//        }
+//    }
+//    return result;
+//}
 
 //************************************************************
 //* generique function called by client to get data
@@ -151,7 +268,7 @@ int libmessage_srvtime_register_svc(    eLIBMSG_ID_t            a_MessageID,
 //  return: > 0 OK len data read
 //          error number
 //************************************************************
-int libmessage_svc_getdata(sDataService_t *a_pDataService)
+int libmessage_svc_client_getdata(sDataService_t *a_pDataService)
 {
     int     result = 0;
     int     fdServer = -1;
@@ -366,7 +483,7 @@ int libmessage_svc_getdata(sDataService_t *a_pDataService)
 //*
 //*
 //****************************************************
-void * libmessage_threadFunction_srv(void * a_pArg)
+static void * libmessage_threadFunction_server(void * a_pArg)
 {
     int             result          = 0;
     int             resultService   = 0;

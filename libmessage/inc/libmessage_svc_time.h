@@ -12,6 +12,17 @@
 
 #include "libmessage.h"
 
+
+enum eLIBMSG_ID
+{
+    eLIBMSG_ID_GETDATA = 0,
+    eLIBMSG_ID_SETDATA,
+    eLIBMSG_ID_SIGNAL,
+    eLIBMSG_ID_END
+};
+typedef enum eLIBMSG_ID eLIBMSG_ID_t;
+
+
 typedef int (*libmessage_pFunctSignalCB_t)(const struct timespec);
 
 
@@ -108,11 +119,17 @@ int libmessage_signaldate(
 //*
 //******************************************************
 
+
+
 int libmessage_srvtime_register_getdate(libmessage_pFunctCB_t a_pFunctCB);
 int libmessage_srvtime_register_setdate(libmessage_pFunctCB_t a_pFunctCB);
 int libmessage_srvtime_register_signaldate(libmessage_pFunctCB_t a_pFunctCB);
 
 int libmessage_srvtime_wait();
+
+static const char          *getNameService(eLIBMSG_ID_t a_ID,eLIBMSG_COL_t a_ColID);
+static sDataThreadCtx_t    *getTheadCtx(eLIBMSG_ID_t a_ID);
+
 
 
 #endif /* INC_LIBMESSAGE_SVC_TIME_H_ */
