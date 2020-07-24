@@ -17,6 +17,8 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <signal.h>
+#include <pthread.h>
 
 #define MQ_FILENAME "/server_time"
 
@@ -99,7 +101,7 @@ int check_mq(void) {
 
     errno = 0;
     //result = mq_open(MQ_FILENAME, O_CREAT,S_IRWXG,&vAttr);
-//    result = mq_open(MQ_FILENAME, O_CREAT,S_IRWXG,0); // ok
+    //    result = mq_open(MQ_FILENAME, O_CREAT,S_IRWXG,0); // ok
     result = mq_open(MQ_FILENAME, O_CREAT,S_IRWXO | S_IRWXG | S_IRWXU ,&vAttr); // ok
 
     printf("mq_open(%s) result=%d errno=%d %s\n",
@@ -109,10 +111,71 @@ int check_mq(void) {
     return EXIT_SUCCESS;
 }
 
+sigset_t    sigset_mask = {0};
+
+void * thread_signal(void * a_pArg)
+{
+    int result = 0;
+    int    vSignal = 0;
+
+    do
+    {
+        vSignal = 0;
+        result = sigwait(&sigset_mask, &vSignal);
+
+        printf("%s : sigwait(mask,%d) result = %d \n",
+                __FUNCTION__,vSignal,result);
+
+    }while(1);
+
+    return 0;
+}
+int check_signal()
+{
+    pthread_t   tid = 0;
+    int         result = 0;
+
+    sigemptyset(&sigset_mask);
+    sigaddset(&sigset_mask, SIGUSR1);
+    sigaddset(&sigset_mask, SIGUSR2);
+    sigaddset(&sigset_mask, SIGALRM);
+    sigprocmask(SIG_BLOCK, &sigset_mask, NULL);
+
+    pthread_create(&tid, NULL, thread_signal, NULL);
+
+    printf("%s : type anykey SIGUSR1\n",__FUNCTION__);
+    getchar();
+
+    do
+    {
+        result = pthread_kill(tid,SIGUSR1);
+        printf("%s : pthread_kill(tid,SIGUSR1) signal=%d result = %d \n",
+                __FUNCTION__,SIGUSR1,result);
+        getchar();
+
+        printf("%s : type anykey SIGUSR2\n",__FUNCTION__);
+        result = pthread_kill(tid,SIGUSR2);
+        printf("%s : pthread_kill(tid,SIGUSR2) signal=%d result = %d \n",
+                __FUNCTION__,SIGUSR2,result);
+        getchar();
+
+        printf("%s : type anykey SIGALRM\n",__FUNCTION__);
+        result = pthread_kill(tid,SIGALRM);
+        printf("%s : pthread_kill(tid,SIGALRM)signal=%d result = %d \n",
+                __FUNCTION__,SIGALRM,result);
+        getchar();
+
+        printf("%s : type anykey SIGUSR1\n",__FUNCTION__);
+
+    }while(1);
+
+}
 int main(void)
 {
 
     // check_mq();
-    check_preprocessor();
+    //check_preprocessor();
+
+    check_signal();
 
 }

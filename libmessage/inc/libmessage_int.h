@@ -25,6 +25,7 @@
 //******************************************************
 
 #define SVR_TIME            "srvtime"
+#define SVR_SYSTEM          "srvsys"
 
 #define SVC_GETDATE         "getdate"
 #define SVC_SETDATE         "setdate"
@@ -97,26 +98,31 @@ const char* get_arrayServiceName(uint32_t a_ServiceID );
 //*             SERVER
 //**********************************************************
 
-static void * libmessage_threadFunction_server(void * a_pArg);
+//int             libmessage_server_initialize();
 
-static void * libmessage_client_threadFunction_signal(void * a_pArg);
-//static void * libmessage_server_threadFunction_signal(void * a_pArg);
+static void *   libmessage_server_threadFunction(void * a_pArg);
+int             libmessage_server_register_svc( sDataThreadCtx_t *a_pDataThreadCtx);
+int             libmessage_server_register_fifosignal( sDataThreadCtx_t *a_pDataThreadCtx);
 
 //**********************************************************
 //*             client
 //**********************************************************
-int libmessage_svc_client_getdata(sDataService_t *a_pDataService);
-int libmessage_client_register_signal(sDataService_t *a_pDataService_t);
+
+static void *   libmessage_client_threadFunction_signal(void * a_pArg);
+
+int             libmessage_client_getdataFromServer (sDataService_t *a_pDataService);
+int             libmessage_client_register_signal   (sDataService_t *a_pDataService_t);
+int             libmessage_client_createThreadSignal(sDataThreadCtx_t *a_pThreadCtx);
+
 //**********************************************************
 //*             COMMON
 //**********************************************************
 
 int libmessage_mkfifo(const char * a_Fifoname);
 int libmessage_openfifo(const char * a_Fifoname,uint32_t a_flag ,int *a_pFd);
+int waitSemaphoreAtDate(sem_t *a_pSemaphore , long long unsigned a_nano);
 
-int                 libmessage_client_initialize();
 
-int libmessage_server_register_svc( sDataThreadCtx_t *a_pDataThreadCtx);
 
 
 

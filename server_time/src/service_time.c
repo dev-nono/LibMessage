@@ -22,27 +22,30 @@
 
 
 
-// static int libmessage_cbfcnt_signaldate(const    void * a_pRequest,
-//                                                 void * a_pResponse)
-// {
-//     int result = 0;
-//
-//     sRequest_t *  pRequest   = (sRequest_t*) a_pRequest;
-//     sResponse_t * pResponse  = (sResponse_t*)a_pResponse;
-//
-//     (void)pRequest;
-//     (void)pResponse;
-//
-//     return  result;
-// }
+ static int libmessage_cbfcnt_signaldate(void *a_pContext)
+ {
+     int result = 0;
 
- static int libmessage_cbfcnt_setdate(const    void * a_pRequest,
-                                                 void * a_pResponse)
+     sRequest_t *  pRequest   =     &( (sDataThreadCtx_t*) a_pContext)->dataService.request;
+     sResponse_t * pResponse  =     &( (sDataThreadCtx_t*) a_pContext)->dataService.response;
+
+
+     // add client to list of observer
+   result = libmessage_server_register_fifosignal(a_pContext);
+
+
+     return  result;
+ }
+
+ static int libmessage_cbfcnt_setdate(//const    void * a_pRequest,void * a_pResponse)
+         void *a_pContext)
  {
      int result = ENODATA;
      char msgbuffer[APISYSLOG_MSG_SIZE] = {0};
-     sRequest_t *  pRequest   = (sRequest_t*) a_pRequest;
-     sResponse_t * pResponse  = (sResponse_t*)a_pResponse;
+//     sRequest_t *  pRequest   = (sRequest_t*) a_pRequest;
+//     sResponse_t * pResponse  = (sResponse_t*)a_pResponse;
+     sRequest_t *  pRequest   =     &( (sDataThreadCtx_t*) a_pContext)->dataService.request;
+     sResponse_t * pResponse  =     &( (sDataThreadCtx_t*) a_pContext)->dataService.response;
 
      sSetdateRequest_t *pData = (sSetdateRequest_t*)&pRequest->data;
 
@@ -63,16 +66,17 @@
      return  result;
  }
 
-static int libmessage_cbfcnt_getdate( const    void * a_pRequest,
-                                               void * a_pResponse)
+static int libmessage_cbfcnt_getdate( void *a_pContext)
 {
     int result = 0;
     char msgbuffer[APISYSLOG_MSG_SIZE] = {0};
 
     //sRequest_t *  pRequest   = (sRequest_t*) a_pRequest;
-    (void)a_pRequest;
 
-    sResponse_t         *pResponse  = (sResponse_t*)a_pResponse;
+    // no inputdata in request
+    sRequest_t *  pRequest   =     &( (sDataThreadCtx_t*) a_pContext)->dataService.request;
+    sResponse_t * pResponse  =     &( (sDataThreadCtx_t*) a_pContext)->dataService.response;
+
     sGetdateResponse_t  *pData      = (sGetdateResponse_t *)&pResponse->data;
 
     pResponse->header.datasize =
@@ -110,9 +114,11 @@ int main(int argc, char *argv[])
     //
     //
     //
+
+    //    result = libmessage_srvtime_initialize() // for signal  TODO
     result = libmessage_srvtime_register_getdate(&libmessage_cbfcnt_getdate);
     result = libmessage_srvtime_register_setdate(&libmessage_cbfcnt_setdate);
-//    result = libmessage_srvtime_register_signaldate(&libmessage_cbfcnt_signaldate);
+    result = libmessage_srvtime_register_signaldate(&libmessage_cbfcnt_signaldate); //TODO
 
 
     result = libmessage_srvtime_wait();

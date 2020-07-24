@@ -6,6 +6,7 @@
  */
 
 
+#include <signal.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <pthread.h>
@@ -22,65 +23,11 @@
 #include "libmessage_int.h"
 
 
-static sThreadCtx_t g_ThreadCtxSignal = {0};
 
 
 
 
-//************************************************************
-//*             incoming event signal
-//************************************************************
-static void * libmessage_client_threadFunction_signal(void * a_pArg)
-{
-    (void)a_pArg;
 
-    do
-    {
-
-    }while(1);
-
-    return (void*)0;
-}
-//************************************************************
-//*
-//************************************************************
-int libmessage_client_register_signal(sDataService_t *a_pDataService_t)
-{
-    int result = 0;
-
-    return result;
-}
-
-//************************************************************
-//*
-//************************************************************
-int libmessage_client_initialize()
-{
-    TRACE_IN("_IN");
-    int result = 0;
-    char msgbuffer[APISYSLOG_MSG_SIZE] = {0};
-
-    errno = 0;
-    result =  pthread_create(&g_ThreadCtxSignal.pthreadID,
-            NULL,
-            &libmessage_client_threadFunction_signal,
-            0);
-
-    if( 0 != result )
-    {
-        snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
-                ": pthread_create() error =%d %s",
-                result,strerror(result));
-
-        fprintf(stderr,"%s : %s \n",__FUNCTION__, msgbuffer);
-        TRACE_ERR(msgbuffer);
-    }
-
-    TRACE_OUT("_OUT result=%d",result)
-
-    return result;
-
-}
 //************************************************************
 //*
 //************************************************************
@@ -142,7 +89,7 @@ int libmessage_server_register_svc(sDataThreadCtx_t *a_pDataThreadCtx)
         errno = 0;
         result =  pthread_create(&a_pDataThreadCtx->pthreadID,
                 NULL,
-                &libmessage_threadFunction_server,
+                &libmessage_server_threadFunction,
                 (void*)a_pDataThreadCtx);
 
         if( 0 != result )
@@ -156,6 +103,7 @@ int libmessage_server_register_svc(sDataThreadCtx_t *a_pDataThreadCtx)
             TRACE_ERR(msgbuffer);
         }
     }
+
     return result;
 }
 ////************************************************************
@@ -255,6 +203,35 @@ int libmessage_server_register_svc(sDataThreadCtx_t *a_pDataThreadCtx)
 //}
 
 //************************************************************
+//
+//************************************************************
+int waitSemaphoreAtDate(sem_t *a_pSemaphore , long long unsigned a_nano)
+{
+    int     result      = 0;
+    char    msgbuffer[APISYSLOG_MSG_SIZE] = {0};
+
+    struct timespec vdatedelta = {0,a_nano}; // 100ms
+    struct timespec abs_timeout = {0,0};
+
+    ADD_TIMESPEC_REAL(vdatedelta,abs_timeout);
+
+    //***************************************************
+    //              lock
+    //***************************************************
+    result = sem_timedwait(a_pSemaphore,&abs_timeout);
+    if( 0 != result )
+    {
+        snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
+                " : sem_wait() result=%d err=%d %s",
+                result,errno,strerror(errno));
+
+        fprintf(stderr,"%s : %s \n",__FUNCTION__, msgbuffer);
+        TRACE_ERR(msgbuffer);
+    }
+
+    return result;
+}
+//************************************************************
 //* generique function called by client to get data
 //  input data :
 //      .filenameClient
@@ -266,11 +243,11 @@ int libmessage_server_register_svc(sDataThreadCtx_t *a_pDataThreadCtx)
 //  return: > 0 OK len data read
 //          error number
 //************************************************************
-int libmessage_svc_client_getdata(sDataService_t *a_pDataService)
+int libmessage_client_getdataFromServer(sDataService_t *a_pDataService)
 {
-    int     result = 0;
-    int     fdServer = -1;
-    int     vSize = 0;
+    int     result      = 0;
+    int     fdServer    = -1;
+    int     vSize       = 0;
     char    msgbuffer[APISYSLOG_MSG_SIZE] = {0};
 
     struct pollfd   vPollfdClient = {0};
@@ -304,26 +281,31 @@ int libmessage_svc_client_getdata(sDataService_t *a_pDataService)
         result = libmessage_openfifo(a_pDataService->filenameServer,O_WRONLY,&fdServer);
     }
 
+    //******************************************
+    //* wait semaphore at new date
+    //******************************************
     if( 0 == result )
     {
-        struct timespec vdatedelta = {0,1e9/1000*100}; // 100ms
-        struct timespec abs_timeout = {0,0};
+        result = waitSemaphoreAtDate(a_pDataService->pSemsvc ,1e9/10); // 100ms
 
-        ADD_TIMESPEC_REAL(vdatedelta,abs_timeout);
-
-        //***************************************************
-        //              lock
-        //***************************************************
-        result = sem_timedwait(a_pDataService->pSemsvc,&abs_timeout);
-        if( 0 != result )
-        {
-            snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
-                    " : sem_wait() result=%d err=%d %s",
-                    result,errno,strerror(errno));
-
-            fprintf(stderr,"%s : %s \n",__FUNCTION__, msgbuffer);
-            TRACE_ERR(msgbuffer);
-        }
+//        struct timespec vdatedelta = {0,1e9/1000*100}; // 100ms
+//        struct timespec abs_timeout = {0,0};
+//
+//        ADD_TIMESPEC_REAL(vdatedelta,abs_timeout);
+//
+//        //***************************************************
+//        //              lock
+//        //***************************************************
+//        result = sem_timedwait(a_pDataService->pSemsvc,&abs_timeout);
+//        if( 0 != result )
+//        {
+//            snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
+//                    " : sem_wait() result=%d err=%d %s",
+//                    result,errno,strerror(errno));
+//
+//            fprintf(stderr,"%s : %s \n",__FUNCTION__, msgbuffer);
+//            TRACE_ERR(msgbuffer);
+//        }
     }
 
     //*********************************************************
@@ -480,7 +462,7 @@ int libmessage_svc_client_getdata(sDataService_t *a_pDataService)
 //*
 //*
 //****************************************************
-static void * libmessage_threadFunction_server(void * a_pArg)
+static void * libmessage_server_threadFunction(void * a_pArg)
 {
     int             result          = 0;
     int             resultService   = 0;
@@ -643,9 +625,10 @@ static void * libmessage_threadFunction_server(void * a_pArg)
             memset(&pContext->dataService.response,0,
                     sizeof(pContext->dataService.response));
 
-            resultService = pContext->dataService.pFunctCB(
-                  &pContext->dataService.request,
-                  &pContext->dataService.response);
+//            resultService = pContext->dataService.pFunctCB(
+//                  &pContext->dataService.request,
+//                  &pContext->dataService.response);
+            resultService = pContext->dataService.pFunctCB(pContext);
 
             (void)resultService;
         }
@@ -761,14 +744,139 @@ int libmessage_openfifo(    const char *a_Fifoname,
     return result;
 }
 
+//************************************************************
+//*             incoming event signal
+//************************************************************
+static void * libmessage_client_threadFunction_signal(void * a_pArg)
+{
+    int             result          = SUCCESS;
+    sDataThreadCtx_t  *pDataThreadCtx     = (sDataThreadCtx_t *)a_pArg;
+    //int             vTimeout        = 500;
+    int    ii              = 0;
+    char        msgbuffer[APISYSLOG_MSG_SIZE] = {0};
+    int             sizebuffer = 0;
+
+    sigset_t    sigset_mask = {0};
+    int         signal = 0;
+
+    sigemptyset(&sigset_mask);
+    sigaddset(&sigset_mask, SIGUSR1);
+    sigprocmask(SIG_BLOCK, &sigset_mask, NULL);
+
+    if( 0 == pDataThreadCtx->nfds )
+    {
+        result = sigwait(&sigset_mask, &signal);
+    }
+
+    do
+    {
+        result = poll(  pDataThreadCtx->pollFdClient,
+                pDataThreadCtx->nfds,-1);
+
+        if( -1 == result )
+        {
+            result = errno;
+
+            snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50," : _1_ poll() errno=%d %s",errno,strerror(errno));
+            fprintf(stderr,"%s : %s \n",__FUNCTION__, msgbuffer);
+            TRACE_ERR(msgbuffer);
+        }
+        else if( EINTR  == result )
+        {
+            continue;
+        }
+        else if(0 == result)
+        {
+            // timeout
+        }
+        else
+        {
+            for(ii = 0; ii < result; ii++)
+            {
+                if( pDataThreadCtx->pollFdClient[ii].revents & POLLIN)
+                {
+                    sizebuffer =  sizeof(pDataThreadCtx->dataService.request);
+                    memset(&pDataThreadCtx->dataService.request,0,sizebuffer);
+
+                    errno = 0;
+                    result = read(pDataThreadCtx->pollFdClient[ii].fd,
+                            &pDataThreadCtx->dataService.request,
+                            sizebuffer);
+
+                    // call callback for signal
+                    result = pDataThreadCtx->dataService.pFunctCB(pDataThreadCtx);
+                }
+            }
+
+        }
+    }while(1);
+
+    return (void*)0;
+}
+//************************************************************
+//*
+//************************************************************
+int libmessage_client_register_signal(sDataService_t *a_pDataService) // TODO
+{
+    int result = 0;
+
+
+
+    return result;
+}
 
 //******************************************************
 //
 //******************************************************
+int libmessage_client_createThreadSignal(sDataThreadCtx_t *a_pDataThreadCtx)
+{
+    int result = SUCCESS;
+    char msgbuffer[APISYSLOG_MSG_SIZE] = {0};
 
+    errno = 0;
+    result =  pthread_create(&a_pDataThreadCtx->pthreadID,
+            NULL,
+            &libmessage_client_threadFunction_signal,
+            (void*)a_pDataThreadCtx);
+
+    if( SUCCESS != result )
+    {
+        snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
+                ": pthread_create() error =%d %s",
+                result,strerror(result));
+
+        fprintf(stderr,"%s : %s \n",__FUNCTION__, msgbuffer);
+        TRACE_ERR(msgbuffer);
+    }
+
+    return result;
+}
 //******************************************************
 //
 //******************************************************
+int libmessage_server_register_fifosignal(sDataThreadCtx_t *a_pDataThreadCtx) // TODO
+{
+    int result = SUCCESS;
+    char msgbuffer[APISYSLOG_MSG_SIZE] = {0};
+
+    errno = 0;
+
+    // open fifo client
+    //a_pDataThreadCtx->dataService.request.filenameClient;
+
+
+//    if( SUCCESS != result )
+//    {
+//        snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
+//                ": pthread_create() error =%d %s",
+//                result,strerror(result));
+//
+//        fprintf(stderr,"%s : %s \n",__FUNCTION__, msgbuffer);
+//        TRACE_ERR(msgbuffer);
+//    }
+
+    return result;
+}
 
 
 

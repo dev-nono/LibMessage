@@ -15,6 +15,8 @@
 #include <errno.h>
 #include <string.h>
 #include <pthread.h>
+#include <signal.h>
+
 
 // #define _GNU_SOURCE
 #include <unistd.h>
@@ -31,16 +33,31 @@
 #include  "libmessage_svc_time.h"
 
 
-static sDataService_t  g_DataService_getdata = {0};
 
 
+//*********************************************************************
+//          data services
+//*********************************************************************
+static sDataThreadCtx_t g_TheadCtx_signal =  {0};
+
+
+//*********************************************************************
+//         thread context service
+//    eLIBMSG_ID_GETDATA = 0,
+//    eLIBMSG_ID_SETDATA,
+//    eLIBMSG_ID_SIGNAL,
+//    eLIBMSG_ID_END
+
+//*********************************************************************
 static sDataThreadCtx_t g_arrayTheadCtx[eLIBMSG_ID_END]= {0};
 static sDataThreadCtx_t *getTheadCtx(eLIBMSG_ID_t a_ID)
 {
     return &g_arrayTheadCtx[a_ID];
 }
 
-static sDataService_t g_DataService_signaldata = {0};
+//*********************************************************************
+//         constantes pathname services
+//*********************************************************************
 
 static char  g_arrayNameService[eLIBMSG_ID_END][3][NAME_MAX]=
 {
@@ -161,6 +178,8 @@ int libmessage_getdate(_OUT_ double     *a_pDate)
     int         result                          = SUCCESS;
     char        msgbuffer[APISYSLOG_MSG_SIZE]   = {0};
 
+    sDataService_t vDataService_getdate = {0};
+
 
     if( (!a_pDate) )
     {
@@ -177,19 +196,19 @@ int libmessage_getdate(_OUT_ double     *a_pDate)
 
     if( SUCCESS == result )
     {
-        getFifoname(g_DataService_getdata.request.filenameClient);
+        getFifoname(vDataService_getdate.request.filenameClient);
 
-        strcpy(g_DataService_getdata.filenameServer,getNameService(eLIBMSG_ID_GETDATA,eLIBMSG_COL_SRV_FILENAME));
+        strcpy(vDataService_getdate.filenameServer,getNameService(eLIBMSG_ID_GETDATA,eLIBMSG_COL_SRV_FILENAME));
 
         errno = 0;
-        g_DataService_getdata.pSemsvc = sem_open(getNameService(eLIBMSG_ID_GETDATA,eLIBMSG_COL_SEM),0);
+        vDataService_getdate.pSemsvc = sem_open(getNameService(eLIBMSG_ID_GETDATA,eLIBMSG_COL_SEM),0);
 
-        if( SEM_FAILED == g_DataService_getdata.pSemsvc)
+        if( SEM_FAILED == vDataService_getdate.pSemsvc)
         {
             snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
                     ": sem_open(%s) result=0x%p errno=%d %s",
                     getNameService(eLIBMSG_ID_GETDATA,eLIBMSG_COL_SRV_FILENAME),
-                    (void*)g_DataService_getdata.pSemsvc,
+                    (void*)vDataService_getdate.pSemsvc,
                     errno,strerror(errno));
             fprintf(stderr,"%s : %s \n",__FUNCTION__, msgbuffer);
             TRACE_ERR(msgbuffer);
@@ -197,20 +216,20 @@ int libmessage_getdate(_OUT_ double     *a_pDate)
             result = errno;
         }
 
-        g_DataService_getdata.pFunctCB = 0;
+        vDataService_getdate.pFunctCB = 0;
     }
 
     if( SUCCESS == result )
     {
-        g_DataService_getdata.request.header.datasize =
-                    sizeof(g_DataService_getdata.request);
+        vDataService_getdate.request.header.datasize =
+                    sizeof(vDataService_getdate.request);
 
-        result = libmessage_svc_client_getdata(&g_DataService_getdata);
+        result = libmessage_client_getdataFromServer(&vDataService_getdate);
     }
 
     if( SUCCESS == result )
     {
-        sGetdateResponse_t *pResponse= (sGetdateResponse_t*)g_DataService_getdata.response.data;
+        sGetdateResponse_t *pResponse= (sGetdateResponse_t*)vDataService_getdate.response.data;
 
 
         *a_pDate = (    (double)pResponse->timespesc.tv_sec)
@@ -275,7 +294,7 @@ int libmessage_setdate( _IN_ double  a_Date)
         pDada->timespesc.tv_sec  = (__time_t)a_Date;
         pDada->timespesc.tv_nsec = (a_Date - pDada->timespesc.tv_sec) *1e9;
 
-        result = libmessage_svc_client_getdata(&vDataService);
+        result = libmessage_client_getdataFromServer(&vDataService);
     }
 
     if( SUCCESS == result )
@@ -303,11 +322,38 @@ int libmessage_setdate( _IN_ double  a_Date)
 //          EINVAL          22  Invalid argument
 //************************************************************
 int libmessage_signaldate(
-        _IN_    double     a_Date,         // buffer data output
-        _IN_    libmessage_pFunctSignalCB_t a_pFunct)// callback
+        _IN_    double                   a_Date,         // buffer data output
+        _IN_    libmessage_pFunctCB_t   a_pFunct)// callback
 {
-    int result = SUCCESS;
-//
+    int     result  = SUCCESS;
+
+    //sDataThreadCtx_t    *pDataThreadCtx = getTheadCtx(eLIBMSG_ID_SIGNAL);
+
+    strncpy(g_TheadCtx_signal.dataService.filenameServer,
+            getNameService(eLIBMSG_ID_SIGNAL,eLIBMSG_COL_SRV_FILENAME),
+            sizeof(g_TheadCtx_signal.dataService.filenameServer)-1);
+
+
+    strncpy(g_TheadCtx_signal.dataService.filenameSemaphore,
+            getNameService(eLIBMSG_ID_SIGNAL,eLIBMSG_COL_SEM),NAME_MAX-1);
+
+    getFifoname(g_TheadCtx_signal.dataService.request.filenameClient);
+
+    //*********************************
+    //              signal
+    //*********************************
+
+    result = libmessage_openfifo(g_TheadCtx_signal.dataService.request.filenameClient,
+            O_RDONLY,&g_TheadCtx_signal.pollFdClient[g_TheadCtx_signal.nfds].fd);
+
+    g_TheadCtx_signal.nfds ++;
+    g_TheadCtx_signal.dataService.pFunctCB = a_pFunct;
+
+    //pDataThreadCtx->dataService.request.header.datasize
+    //g_DataThreadCtx_signaldate.dataService.request.data = date
+    //pDataThreadCtx->dataService.
+
+    //
 //    char msgbuffer[APISYSLOG_MSG_SIZE] = {0};
 //
 //    if( SUCCESS == result )
@@ -373,4 +419,44 @@ int libmessage_signaldate(
 //    }
 
     return result ;
+}// int libmessage_signaldate(...)
+//****************************************************************
+int  libmessage_srvtime_client_initialize()
+//****************************************************************
+{
+    int result  = SUCCESS;
+    unsigned int ii = 0;
+
+    memset(&g_TheadCtx_signal,0,sizeof(g_TheadCtx_signal));
+
+    // create thread for incomming signal
+    for( ii = 0; ii< MAX_POLL_FD; ii++)
+    {
+        g_TheadCtx_signal.pollFdClient[ii].fd = -1;
+    }
+
+    result = libmessage_client_createThreadSignal(&g_TheadCtx_signal);
+
+    return result ;
 }
+//****************************************************************
+int  libmessage_srvtime_client_start_thread_signal()
+//****************************************************************
+{
+    int result  = SUCCESS;
+    char msgbuffer[APISYSLOG_MSG_SIZE] = {0};
+
+    result = pthread_kill(g_TheadCtx_signal.pthreadID,SIGUSR1);
+
+    if( SUCCESS != result )
+    {
+        snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
+                ": pthread_kill(%ld,%d) result=%d",
+                g_TheadCtx_signal.pthreadID,SIGUSR1,result);
+        fprintf(stderr,"%s : %s \n",__FUNCTION__, msgbuffer);
+        TRACE_ERR(msgbuffer);
+    }
+
+    return result ;
+}
+

@@ -8,15 +8,19 @@
 #ifndef INC_LIBMESSAGE_H_
 #define INC_LIBMESSAGE_H_
 
-#include "limits.h"
+#include <limits.h>
 #include <semaphore.h>
+#include <poll.h>
 
+#define MAX_POLL_FD (100U)
 
 #define _IN_
 #define _OUT_
 #define _INOUT_
 
-typedef int (*libmessage_pFunctCB_t)(const void * , void *);
+
+//typedef int (*libmessage_pFunctCB_t)(const void * , void *);
+typedef int (*libmessage_pFunctCB_t)(void *a_pContext);
 
 
 enum eLIBMSG_COL
@@ -72,20 +76,11 @@ struct sDataService
 
     sRequest_t     request;
     sResponse_t    response;
+
+
 };
 typedef struct sDataService   sDataService_t;
 
-
-typedef struct pollfd pollfd_t;
-
-struct sThreadCtx
-{
-    pthread_t       pthreadID;
-    pthread_attr_t  attr;
-    sem_t           semsvc;
-
-};
-typedef struct sThreadCtx sThreadCtx_t;
 
 struct sDataThreadCtx
 {
@@ -94,13 +89,17 @@ struct sDataThreadCtx
 
     sDataService_t  dataService;
 
+    // for client signal;
+    struct pollfd   pollFdClient[MAX_POLL_FD];
+    nfds_t          nfds;
+
 };
 typedef struct sDataThreadCtx sDataThreadCtx_t;
-
 
 
 //******************************************************
 //  generic function
 //******************************************************
+
 
 #endif /* INC_LIBMESSAGE_H_ */

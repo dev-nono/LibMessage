@@ -116,12 +116,23 @@ int check_setDateSleep(char* a_fifoName)
 
     return result;
 }
-
-static int pFunctSignalCB(const struct timespec a_timespec)
+//******************************************************************
+static int pFunctSignalCB(void *a_pContext)
+//******************************************************************
 {
-    (void)a_timespec;
+    int             result      = SUCCESS;
+   sDataThreadCtx_t *pContext   = (sDataThreadCtx_t *) a_pContext;
+   struct timespec  *ts         = {0};
 
-    return 0;
+
+   ts = (struct timespec  *)&pContext->dataService.request.data;
+
+   // print incomming data
+
+   printf("%s : date= %ld.%9ld \n",__FUNCTION__,ts->tv_sec,ts->tv_nsec);
+
+
+    return result;
 }
 
 //******************************************************************
@@ -131,8 +142,18 @@ int check_signalDate(char* a_fifoName)
     int     result = SUCCESS;
 
     double vFreq = 1.0;
+    (void)a_fifoName;
+
+    // create signal thread for incomming event
+    result = libmessage_srvtime_client_initialize();
 
     result = libmessage_signaldate(vFreq,&pFunctSignalCB);
+
+    result =libmessage_srvtime_client_start_thread_signal();
+
+    printf("%s : result=%d \n",__FUNCTION__,result);
+    printf("type any key to continue ... \n");
+    getchar();
 
     // wait for anything
 
@@ -143,8 +164,6 @@ int main(int argc, char *argv[])
 {
     int     result = SUCCESS;
 
-    char vProcessname[NAME_MAX];
-
     apisyslog_init("");
 
     if( argc > 1 )
@@ -152,9 +171,9 @@ int main(int argc, char *argv[])
         //check_getDateSleep(argv[1]);
         //check_getDateLoop(argv[1]);
 
-        check_setDateSleep(argv[1]);
+        //check_setDateSleep(argv[1]);
 
-        //check_signalDate(argv[1]);
+        check_signalDate(argv[1]);
     }
     else
     {

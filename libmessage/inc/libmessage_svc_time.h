@@ -23,7 +23,7 @@ enum eLIBMSG_ID
 typedef enum eLIBMSG_ID eLIBMSG_ID_t;
 
 
-typedef int (*libmessage_pFunctSignalCB_t)(const struct timespec);
+//typedef int (*                        )(const struct timespec);
 
 
 //*****************************************************
@@ -108,8 +108,12 @@ int libmessage_setdate(_IN_ double a_Date); // buffer data output
 //          errors ...
 //************************************************************
 int libmessage_signaldate(
-        _IN_    double     a_Date,         // buffer data output
-        _IN_    libmessage_pFunctSignalCB_t a_pFunct);// callback
+        _IN_    double                  a_Date,         // buffer data output
+        _IN_    libmessage_pFunctCB_t a_pFunct);// callback
+
+
+int  libmessage_srvtime_client_initialize();
+int  libmessage_srvtime_client_start_thread_signal();
 
 //******************************************************
 //*
