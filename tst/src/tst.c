@@ -8,6 +8,8 @@
  ============================================================================
  */
 
+#include <fcntl.h> /* Définition des constantes AT_* */
+#include <unistd.h>
 #include <fcntl.h>           /* Pour les constantes O_* */
 #include <sys/stat.h>        /* Pour les constantes des modes */
 #include <mqueue.h>
@@ -19,6 +21,7 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <pthread.h>
+#include <limits.h>
 
 #define MQ_FILENAME "/server_time"
 
@@ -170,12 +173,52 @@ int check_signal()
     }while(1);
 
 }
+
+    //******************************************************
+    //
+    //******************************************************
+int check_mkfifo()
+{
+    int result = 0;
+    char msgbuffer[255] = {0};
+    char    endpointName[PATH_MAX] = "/tmp/client.123456";
+
+    unlink(endpointName);
+
+    //*********************************************************
+    // create server endpoint
+    //*********************************************************
+    errno = 0;
+    result = mkfifo(endpointName,S_IRWXU);
+
+    if( (0 != result ) && (EEXIST != errno) )
+    {
+        // error
+        snprintf(msgbuffer,255,
+                ": mkfifo(-%s-) Error=%d %s \n",
+                endpointName,
+                errno,strerror(errno));
+
+        fprintf(stderr,"%s : %s \n",__FUNCTION__, msgbuffer);
+
+    }
+    else
+    {
+        fprintf(stderr,": mkfifo(%s) OK \n",
+                endpointName);
+        result = 0;
+    }
+
+    return result;
+
+}
 int main(void)
 {
 
     // check_mq();
     //check_preprocessor();
+    // check_signal();
 
-    check_signal();
+    check_mkfifo();
 
 }
