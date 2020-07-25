@@ -100,7 +100,7 @@ const char* get_arrayServiceName(uint32_t a_ServiceID );
 
 //int             libmessage_server_initialize();
 
-static void *   libmessage_server_threadFunction(void * a_pArg);
+static void *   libmessage_server_threadFunction(void * a_pArg); // TODO
 int             libmessage_server_register_svc( sDataThreadCtx_t *a_pDataThreadCtx);
 int             libmessage_server_register_fifosignal( sDataThreadCtx_t *a_pDataThreadCtx);
 
@@ -108,7 +108,7 @@ int             libmessage_server_register_fifosignal( sDataThreadCtx_t *a_pData
 //*             client
 //**********************************************************
 
-static void *   libmessage_client_threadFunction_signal(void * a_pArg);
+static void *   libmessage_client_threadFunction_signal(void * a_pArg); // TODO
 
 int             libmessage_client_getdataFromServer (sDataService_t *a_pDataService);
 int             libmessage_client_register_signal   (sDataService_t *a_pDataService_t);
@@ -120,7 +120,13 @@ int             libmessage_client_createThreadSignal(sDataThreadCtx_t *a_pThread
 
 int libmessage_mkfifo(const char * a_Fifoname);
 int libmessage_openfifo(const char * a_Fifoname,uint32_t a_flag ,int *a_pFd);
-int waitSemaphoreAtDate(sem_t *a_pSemaphore , long long unsigned a_nano);
+int libmessage_openfifo_block(const char * a_Fifoname,uint32_t a_flag ,int *a_pFd);
+int libmessage_waitSemaphoreAtDate(sem_t *a_pSemaphore , long long unsigned a_nano);
+int libmessage_writeRequest(sDataService_t *a_pDataService,int a_fileDescriptor);
+int libmessage_pollResponse(int a_fileDescriptor);
+int libmessage_readDataResponse(sDataService_t *a_pDataService, int a_fileDescriptor);
+
+
 
 
 

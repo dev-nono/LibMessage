@@ -13,6 +13,9 @@
 #include <string.h>
 #include <stdio.h>
 
+#include <unistd.h>
+#include <fcntl.h>
+
 #include <sys/stat.h>
 #include <unistd.h>
 #include <math.h>
@@ -205,7 +208,7 @@ int libmessage_server_register_svc(sDataThreadCtx_t *a_pDataThreadCtx)
 //************************************************************
 //
 //************************************************************
-int waitSemaphoreAtDate(sem_t *a_pSemaphore , long long unsigned a_nano)
+int libmessage_waitSemaphoreAtDate(sem_t *a_pSemaphore , long long unsigned a_nano)
 {
     int     result      = 0;
     char    msgbuffer[APISYSLOG_MSG_SIZE] = {0};
@@ -215,6 +218,10 @@ int waitSemaphoreAtDate(sem_t *a_pSemaphore , long long unsigned a_nano)
 
     ADD_TIMESPEC_REAL(vdatedelta,abs_timeout);
 
+    TRACE_DBG1(" : sem_timedwait()  nano=%lu",a_nano);
+
+    //result = sem_wait(a_pSemaphore);
+
     //***************************************************
     //              lock
     //***************************************************
@@ -222,15 +229,194 @@ int waitSemaphoreAtDate(sem_t *a_pSemaphore , long long unsigned a_nano)
     if( 0 != result )
     {
         snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
-                " : sem_wait() result=%d err=%d %s",
+                " : sem_timedwait() result=%d err=%d %s",
                 result,errno,strerror(errno));
 
         fprintf(stderr,"%s : %s \n",__FUNCTION__, msgbuffer);
         TRACE_ERR(msgbuffer);
     }
+    TRACE_DBG1(" : sem_timedwait() result=%d nano=%lu",result, a_nano);
 
     return result;
 }
+//************************************************************
+//
+//************************************************************
+int libmessage_writeRequest(sDataService_t *a_pDataService,int a_fileDescriptor)
+{
+    int     result      = 0;
+    char    msgbuffer[APISYSLOG_MSG_SIZE] = {0};
+    int     vSize       = 0;
+
+    //send request to server endpoint
+    vSize = a_pDataService->request.header.datasize;
+    errno = 0;
+    result = write(a_fileDescriptor,
+            (char*)&a_pDataService->request,
+             vSize);
+
+    if(-1 ==  result)
+    {
+        result = errno;
+        snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
+                " : server write(%d,%s,%d) Error %d %s ",
+                a_fileDescriptor,
+                a_pDataService->filenameServer,
+                vSize,errno,strerror(errno));
+
+        fprintf(stderr,"%s : %s \n",__FUNCTION__, msgbuffer);
+        TRACE_ERR(msgbuffer);
+    }
+    else
+    {
+        TRACE_DBG1(" : server write(%d,%s,%d) result=%d ",
+                a_fileDescriptor,
+                a_pDataService->filenameServer,
+                vSize,result);
+        result = 0;
+    }
+
+    close(a_fileDescriptor);
+    a_fileDescriptor = -1;
+
+    //if( SUCCESS == result)
+    {
+        errno = 0;
+        result = sem_post(a_pDataService->pSemsvc);
+
+        if( SUCCESS != result)
+        {
+            result = errno;
+            snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
+                    " : sem_post() Error %d %s ",
+                    errno,strerror(errno));
+        }
+    }
+
+    return result;
+}
+//************************************************************
+//
+//************************************************************
+int libmessage_pollResponse(int a_fileDescriptor)
+{
+    int             result      = 0;
+    char            msgbuffer[APISYSLOG_MSG_SIZE] = {0};
+    struct pollfd   vPollfdClient = {0};
+    nfds_t          vNfds    = 1;
+    int             vTimeout = -1;
+
+    vPollfdClient.fd      = a_fileDescriptor;
+    vPollfdClient.events = POLLIN | POLLPRI ;
+    vPollfdClient.revents = 0;
+    vTimeout = -1;
+
+    errno = 0;
+    do{
+        vPollfdClient.revents = 0;
+        result  = poll(&vPollfdClient, vNfds, vTimeout);
+
+        TRACE_DBG1(" : poll(%d) result=%d: revents=%d 0x%X",
+                a_fileDescriptor,result,
+                (int)vPollfdClient.revents,(int)vPollfdClient.revents);
+
+    }while( vPollfdClient.revents & POLLNVAL);
+
+    TRACE_DBG1(" : poll_2(%d) result=%d: revents=%d 0x%X",
+            a_fileDescriptor,result,
+            (int)vPollfdClient.revents,(int)vPollfdClient.revents);
+
+
+    if( ( -1 == result ) )
+    {
+        snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
+                " : poll(%d) result=%d errno=%d %s",
+                a_fileDescriptor,result,errno,strerror(errno));
+
+        result = errno;
+
+        fprintf(stderr,"%s : %s \n",__FUNCTION__, msgbuffer);
+        TRACE_ERR(msgbuffer);
+
+    }
+    else if( 0 == result )
+    {
+        TRACE_DBG1(" : poll(%d) result=%d Error Timeout %d %s ",
+                a_fileDescriptor,result,errno,strerror(errno));
+        result = errno;
+    }
+    else if ( result && ( vPollfdClient.revents & POLLHUP) )
+    {
+        if( vPollfdClient.revents & POLLIN)
+        {
+            result = 0;
+            TRACE_DBG1(" : poll(%d) result=%d POLLIN=0x%X",
+                    a_fileDescriptor,result,POLLIN);
+       }
+        else
+        {
+            TRACE_ERR(" : poll(%d) result=%d POLLHUP event",
+                    a_fileDescriptor,result);
+
+            result = EPIPE;
+        }
+    }
+    else
+    {
+        result = 0;
+    }
+
+    return result;
+}
+//************************************************************
+//
+//************************************************************
+int libmessage_readDataResponse(sDataService_t *a_pDataService,
+        int a_fileDescriptor)
+{
+    int     result      = 0;
+    char    msgbuffer[APISYSLOG_MSG_SIZE] = {0};
+    int     vSize       = 0;
+
+    errno = 0;
+    vSize = sizeof(a_pDataService->response);
+    result = read(  a_fileDescriptor,
+                    &a_pDataService->response,
+                    vSize);
+
+    if( 0 == result )
+    {
+        snprintf(msgbuffer,APISYSLOG_MSG_SIZE-1,
+                " : read(%d,%.50s,%d) Error client fifo result == 0  ",
+                a_fileDescriptor,
+                a_pDataService->request.filenameClient,
+                vSize);
+
+        fprintf(stderr,"%s : %s \n",__FUNCTION__, msgbuffer);
+        TRACE_ERR(msgbuffer);
+    }
+    else if (-1 == result )
+    {
+        snprintf(msgbuffer,APISYSLOG_MSG_SIZE-1,
+                ": read(%d,%.50s,%d) error client %d %s",
+                a_fileDescriptor,
+                a_pDataService->request.filenameClient,
+                vSize,errno,strerror(errno));
+
+        fprintf(stderr,"%s : %s \n",__FUNCTION__, msgbuffer);
+        TRACE_ERR(msgbuffer);
+    }
+    else
+    {
+        TRACE_DBG1(" : client fifo read from server size=%d result=%d\n",
+                vSize , result);
+        result = 0;
+    }
+
+
+    return result;
+}
+
 //************************************************************
 //* generique function called by client to get data
 //  input data :
@@ -247,28 +433,36 @@ int libmessage_client_getdataFromServer(sDataService_t *a_pDataService)
 {
     int     result      = 0;
     int     fdServer    = -1;
-    int     vSize       = 0;
-    char    msgbuffer[APISYSLOG_MSG_SIZE] = {0};
+    int     vPollfdClient = -1;
+    //char    msgbuffer[APISYSLOG_MSG_SIZE] = {0};
 
-    struct pollfd   vPollfdClient = {0};
-    nfds_t          vNfds    = 1;
-    int             vTimeout = 500;
-
-
-    vPollfdClient.fd      = -1;
+    //******************************************
+    //* wait semaphore at new date
+    //******************************************
+    if( 0 == result )
+    { // // 10ms
+        result = libmessage_waitSemaphoreAtDate(a_pDataService->pSemsvc ,1e9/100);
+    }
+    TRACE_DBG1(" : _1_ libmessage_waitSemaphoreAtDate result=%d \n",result);
 
     //*********************************************************
     //          create client fifo
     //*********************************************************
 
-    result = libmessage_mkfifo(a_pDataService->request.filenameClient);
-
+    if( 0 == result )
+    {
+        result = libmessage_mkfifo(a_pDataService->request.filenameClient);
+    }
     //*********************************************************
     //          open client endpoint
     //*********************************************************
     if( 0 == result )
     {
-        result = libmessage_openfifo(a_pDataService->request.filenameClient,O_RDONLY,&vPollfdClient.fd );
+        result = libmessage_openfifo(a_pDataService->request.filenameClient,
+                //O_WRONLY,
+                //O_RDWR,
+                O_RDONLY,
+                &vPollfdClient );
     }
 
     //*********************************************************
@@ -278,34 +472,8 @@ int libmessage_client_getdataFromServer(sDataService_t *a_pDataService)
     {
         // open server endpoint  argv[1]
         fdServer = -1;
-        result = libmessage_openfifo(a_pDataService->filenameServer,O_WRONLY,&fdServer);
-    }
-
-    //******************************************
-    //* wait semaphore at new date
-    //******************************************
-    if( 0 == result )
-    {
-        result = waitSemaphoreAtDate(a_pDataService->pSemsvc ,1e9/10); // 100ms
-
-//        struct timespec vdatedelta = {0,1e9/1000*100}; // 100ms
-//        struct timespec abs_timeout = {0,0};
-//
-//        ADD_TIMESPEC_REAL(vdatedelta,abs_timeout);
-//
-//        //***************************************************
-//        //              lock
-//        //***************************************************
-//        result = sem_timedwait(a_pDataService->pSemsvc,&abs_timeout);
-//        if( 0 != result )
-//        {
-//            snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
-//                    " : sem_wait() result=%d err=%d %s",
-//                    result,errno,strerror(errno));
-//
-//            fprintf(stderr,"%s : %s \n",__FUNCTION__, msgbuffer);
-//            TRACE_ERR(msgbuffer);
-//        }
+        result = libmessage_openfifo(a_pDataService->filenameServer,
+                O_WRONLY,&fdServer);
     }
 
     //*********************************************************
@@ -313,145 +481,52 @@ int libmessage_client_getdataFromServer(sDataService_t *a_pDataService)
     //*********************************************************
     if( 0 == result )
     {
-        //send request to server endpoint
-        vSize = a_pDataService->request.header.datasize;
-        errno = 0;
-        result = write(fdServer,
-                (char*)&a_pDataService->request,
-                 vSize);
-
-        if(-1 ==  result)
-        {
-            result = errno;
-            snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
-                    " : _2_ server write(%d,%s,%d) Error %d %s ",
-                    fdServer,
-                    a_pDataService->filenameServer,
-                    vSize,errno,strerror(errno));
-
-            fprintf(stderr,"%s : %s \n",__FUNCTION__, msgbuffer);
-            TRACE_ERR(msgbuffer);
-        }
-        else
-        {
-            TRACE_DBG1(" : _21_ server write(%d,%s,%d) result=%d ",
-                    fdServer,
-                    a_pDataService->filenameServer,
-                    vSize,result);
-            result = 0;
-        }
-
-        close(fdServer);
-        fdServer = -1;
-
-        result = sem_post(a_pDataService->pSemsvc);
+         //send request to server endpoint
+       result = libmessage_writeRequest(a_pDataService,fdServer);
     }
-
-
     TRACE_DBG1(" : _3_ sem_post result=%d err=%d %s \n",
             result,errno,strerror(errno));
+
+    //******************************************
+    //* wait semaphore at new date
+    //******************************************
+//    if( 0 == result )
+//    { // // 100ms
+//        result = libmessage_waitSemaphoreAtDate(a_pDataService->pSemsvc ,1e9/10);
+//    }
 
     //*********************************************************
     //      waiting receive response : polling
     //*********************************************************
     if( 0 == result )
     {
-        vPollfdClient.events = POLLIN | POLLPRI ;
-        vPollfdClient.revents = 0;
-        vTimeout = -1;
-
-        errno = 0;
-        result  = poll(&vPollfdClient, vNfds, vTimeout);
-
-        TRACE_DBG1(" : _31_ poll  result=%d: revents=%d 0x%X",
-                result,
-                (int)vPollfdClient.revents,(int)vPollfdClient.revents);
-
-
-        if( ( -1 == result ) )
-        {
-            snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
-                    " : _32_ poll() errno=%d %s",
-                    errno,strerror(errno));
-
-            result = errno;
-
-            fprintf(stderr,"%s : %s \n",__FUNCTION__, msgbuffer);
-            TRACE_ERR(msgbuffer);
-
-        }
-        else if( 0 == result )
-        {
-            TRACE_DBG1(" : _33_ poll() Error Timeout %d %s ",
-                    errno,strerror(errno));
-            result = errno;
-        }
-        else if ( result && ( vPollfdClient.revents & POLLHUP) )
-        {
-            if( vPollfdClient.revents & POLLIN)
-            {
-                result = 0;
-            }
-            else
-            {
-                TRACE_ERR(" : _34_ poll() result=%d POLLHUP event",
-                        result);
-
-                result = EPIPE;
-            }
-        }
-        else
-        {
-            result = 0;
-        }
+        result = libmessage_pollResponse(fdServer);
     }
     //*********************************************************
     //          read response from server
     //*********************************************************
+//    if( 0 == result )
+//    {
+//        TRACE_DBG1(" : _4_ libmessage_openfifo_block()\n");
+//        result = libmessage_openfifo_block(a_pDataService->request.filenameClient,
+//                //O_WRONLY,
+//                //O_RDWR,
+//                O_RDONLY,
+//                &vPollfdClient );
+//        TRACE_DBG1(" : _41_ libmessage_openfifo_block(%s) result=%d\n",
+//                a_pDataService->request.filenameClient,
+//                result);
+//    }
     if( 0 == result )
     {
-
-        errno = 0;
-        vSize = sizeof(a_pDataService->response);
-        result = read(  vPollfdClient.fd,
-                        &a_pDataService->response,
-                        vSize);
-
-        if( 0 == result )
-        {
-            snprintf(msgbuffer,APISYSLOG_MSG_SIZE-1,
-                    " : _4_ read(%d,%.50s,%d) Error client fifo result == 0  ",
-                    vPollfdClient.fd,
-                    a_pDataService->request.filenameClient,
-                    vSize);
-
-            fprintf(stderr,"%s : %s \n",__FUNCTION__, msgbuffer);
-            TRACE_ERR(msgbuffer);
-        }
-        else if (-1 == result )
-        {
-            snprintf(msgbuffer,APISYSLOG_MSG_SIZE-1,
-                    ": _41_ read(%d,%.50s,%d) error client %d %s",
-                    vPollfdClient.fd,
-                    a_pDataService->request.filenameClient,
-                    vSize,errno,strerror(errno));
-
-            fprintf(stderr,"%s : %s \n",__FUNCTION__, msgbuffer);
-            TRACE_ERR(msgbuffer);
-        }
-        else
-        {
-            TRACE_DBG1(" : _42_ client fifo read from server size=%d result=%d\n",
-                    vSize , result);
-            result = 0;
-        }
+        result = libmessage_readDataResponse(a_pDataService,vPollfdClient);
     }
 
     if( -1 != fdServer)
         close(fdServer);
 
-    if( -1 != vPollfdClient.fd)
-        close(vPollfdClient.fd);
+    if( -1 != vPollfdClient)
+        close(vPollfdClient);
 
     unlink(a_pDataService->request.filenameClient);
 
@@ -466,6 +541,7 @@ static void * libmessage_server_threadFunction(void * a_pArg)
 {
     int             result          = 0;
     int             resultService   = 0;
+    int             resultpoll      = 0;
     sDataThreadCtx_t   *pContext = (sDataThreadCtx_t*)a_pArg;
 
     int     fdServer = -1;
@@ -490,12 +566,24 @@ static void * libmessage_server_threadFunction(void * a_pArg)
     //******************************************************
     //  lock fifo server
     //******************************************************
+    //result = libmessage_waitSemaphoreAtDate(pContext->dataService.pSemsvc,(1e9 / 100));
+
     result = sem_wait(pContext->dataService.pSemsvc);
     TRACE_DBG1(" : _1_ sem_wait() result=%d err=%d %s \n",
             result,errno,strerror(errno));
 
     do
     {
+        if( 0 == result )
+        {
+            //***************************************************
+            //              unlock
+            //***************************************************
+            result = sem_post(pContext->dataService.pSemsvc);
+            TRACE_DBG1(" : _11_ sem_post() result=%d err=%d %s \n",
+                    result,errno,strerror(errno));
+        }
+
         result = 0;
         //***************************************************
         //              open fifo server
@@ -503,7 +591,12 @@ static void * libmessage_server_threadFunction(void * a_pArg)
         close(fdServer);
 
         errno = 0;
-        fdServer = open(pContext->dataService.filenameServer,O_NONBLOCK|O_CLOEXEC|O_RDONLY);
+        fdServer = open(pContext->dataService.filenameServer,
+                //O_NONBLOCK|
+                O_CLOEXEC|O_RDONLY);
+        TRACE_DBG1(" : _12_ open(%s) result=%d err=%d %s \n",
+                pContext->dataService.filenameServer,
+                result,errno,strerror(errno));
 
         if( -1 == fdServer )
         {
@@ -521,35 +614,37 @@ static void * libmessage_server_threadFunction(void * a_pArg)
             //***************************************************
             //              unlock
             //***************************************************
-            result = sem_post(pContext->dataService.pSemsvc);
-            TRACE_DBG1(" : _3_ sem_post() result=%d err=%d %s \n",
-                    result,errno,strerror(errno));
+//            result = sem_post(pContext->dataService.pSemsvc);
+//            TRACE_DBG1(" : _3_ sem_post() result=%d err=%d %s \n",
+//                    result,errno,strerror(errno));
         }
 
-        if( 0 == result )
-        {
-            //***************************************************
-            //              poll
-            //***************************************************
-            vPollfd.fd = fdServer;
-            vPollfd.events = POLLIN | POLLPRI ;
-            vPollfd.revents = 0;
-            errno = 0;
-
-            result  = poll(&vPollfd, vNfds, vTimeout);
-
-            TRACE_DBG1(" : _4_ poll  result=%d: revents=%d 0x%X \n",
-                    result, (int)vPollfd.revents,(int)vPollfd.revents);
-        }
-        if( 0 < result )
+//        if( 0 == result )
+//        {
+//            //***************************************************
+//            //              poll
+//            //***************************************************
+//            vPollfd.fd = fdServer;
+//            vPollfd.events = POLLIN | POLLPRI ;
+//            vPollfd.revents = 0;
+//            errno = 0;
+//
+//            resultpoll  = poll(&vPollfd, vNfds, vTimeout);
+//
+//            TRACE_DBG1(" : _4_ poll  result=%d: revents=%d 0x%X \n",
+//                    resultpoll, (int)vPollfd.revents,(int)vPollfd.revents);
+//        }
+//        if( ( 0 == result ) && (0 < resultpoll))
+        if(  0 == result )
         {
             //******************************************************
             //  lock fifo server
             //******************************************************
-            result = sem_wait(pContext->dataService.pSemsvc);
-            TRACE_DBG1(" : _5_ sem_wait() result=%d err=%d %s \n",
-                    result,errno,strerror(errno));
-            //
+//            result = libmessage_waitSemaphoreAtDate(pContext->dataService.pSemsvc,(1e9 / 100 ));
+            //result = sem_wait(pContext->dataService.pSemsvc);
+//            TRACE_DBG1(" : _5_ sem_wait() result=%d err=%d %s \n",
+//                    result,errno,strerror(errno));
+
 
         }
         if( 0 == result )
@@ -605,10 +700,14 @@ static void * libmessage_server_threadFunction(void * a_pArg)
             fdClient = open(pContext->dataService.request.filenameClient,
                     O_NONBLOCK|O_CLOEXEC|O_WRONLY); //
 
+            TRACE_DBG1(" : _9_ open(%s) err=%d %s ",
+                    pContext->dataService.request.filenameClient,
+                    errno,strerror(errno));
+
             if( -1 == fdClient  )
             {
                 snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
-                        " : _9_ open(%.50s) err=%d %s ",
+                        " : _91_ open(%.50s) err=%d %s ",
                         pContext->dataService.request.filenameClient
                         ,errno,strerror(errno));
                 result = errno;
@@ -629,7 +728,7 @@ static void * libmessage_server_threadFunction(void * a_pArg)
 //                  &pContext->dataService.request,
 //                  &pContext->dataService.response);
             resultService = pContext->dataService.pFunctCB(pContext);
-
+            TRACE_DBG1(" : _92_ callCB resultService=%d",resultService);
             (void)resultService;
         }
         //*********************************************************
@@ -642,10 +741,16 @@ static void * libmessage_server_threadFunction(void * a_pArg)
             result = write(fdClient,
                     &pContext->dataService.response,
                     sizebuffer);
+
+            TRACE_DBG1(" : _10_ write(%d,%.50s,%d) err=%d %s \n",
+                    fdClient,
+                    pContext->dataService.request.filenameClient,
+                    sizebuffer, errno,strerror(errno));
+
             if(-1 ==  result)
             {
                 snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
-                        " : _10_ write(%d,%.50s,%d) err=%d %s \n",
+                        " : _11_ write(%d,%.50s,%d) err=%d %s \n",
                         fdClient,
                         pContext->dataService.request.filenameClient,
                         sizebuffer, errno,strerror(errno));
@@ -655,7 +760,7 @@ static void * libmessage_server_threadFunction(void * a_pArg)
             }
             else
             {
-                TRACE_DBG1(" :_11_ write(%d,%d) ok result=%d \n",
+                TRACE_DBG1(" :_12_ write(%d,%d) ok result=%d \n",
                         fdClient,sizebuffer,result);
             }
         }
@@ -700,6 +805,44 @@ int libmessage_mkfifo(const char* a_endpointName)
     {
         TRACE_DBG1(": mkfifo(%s) OK \n",
                 a_endpointName);
+        result = 0;
+    }
+
+    return result;
+}
+//******************************************************
+//
+// returnfd openned
+//                  > stderr(2) : fd open
+//                  -1 : error
+//******************************************************
+int libmessage_openfifo_block(    const char *a_Fifoname,
+        uint32_t    a_flag ,
+        int         *a_pFd)
+{
+    int result = 0;
+    char msgbuffer[APISYSLOG_MSG_SIZE] = {0};
+
+    // open client endpoint
+    errno = 0;
+    result = open(a_Fifoname, O_CLOEXEC|a_flag);
+
+    if( -1 == result  )
+    {
+        snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
+                ":Error open(%s,0x%X) %d %s",
+                a_Fifoname, O_NONBLOCK|O_CLOEXEC|a_flag,
+                errno,strerror(errno));
+
+        fprintf(stderr,"%s : %s \n",__FUNCTION__, msgbuffer);
+        TRACE_ERR(msgbuffer);
+
+    }
+    else
+    {
+        TRACE_DBG1(": open(%s,0x%X) = %d \n",
+                a_Fifoname, O_NONBLOCK|O_CLOEXEC|a_flag,result);
+        *a_pFd = result;
         result = 0;
     }
 
