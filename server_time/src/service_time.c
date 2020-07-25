@@ -16,26 +16,159 @@
 #include <mqueue.h>
 #include <time.h>
 #include <poll.h>
+#include <errno.h>
 
+#include "utils.h"
 #include "libmessage_int.h"
-
-
 #include "libmessage.h"
 
+int test_msgQueue()
+{
+    int result = 0;
+    int vLenReceive = 0;
+    char vClientfilename[PATH_MAX] = "";
+    char vServerfilename[PATH_MAX] = SERVER_TIME;
+    struct mq_attr  vAttr   = {0};
+
+    struct pollfd fd_client = {0};
+    struct pollfd fd_server = {0};
+
+    char    vBufferIN[LIBMESSAGE_MAX_BUFFER] = {0};
+    char    vBufferOUT[LIBMESSAGE_MAX_BUFFER] = {0};
+
+
+    vAttr.mq_flags  = O_CLOEXEC;
+    vAttr.mq_curmsgs = 1;
+    vAttr.mq_maxmsg = 10;
+    vAttr.mq_msgsize = LIBMESSAGE_MAX_BUFFER;
+
+    //**********************************************************
+    // open mq server
+    //**********************************************************
+    mq_unlink(SERVER_TIME);
+    errno  = 0;
+    fd_server.fd = mq_open(SERVER_TIME,
+            O_CREAT | O_RDONLY,S_IRWXO | S_IRWXG | S_IRWXU ,&vAttr);
+
+    fprintf(stderr,"_1_ \n");
+
+    if( -1 == fd_server.fd )
+    {
+        fprintf(stderr,"mq_open(SERVER_TIME) result=%d errno=%d %s \n",
+                result , errno,strerror(errno));
+    }
+    // prepare msg
+
+    do{
+//        fprintf(stderr,"_2_ \n");
+
+        fd_server.events = POLLIN | POLLPRI;
+        fd_server.revents = 0;
+
+        errno = 0;
+        result = poll(&fd_server,1,-1);
+        if ( (0 == result) || (-1 == result))
+        {
+            fprintf(stderr,"poll(%d) result=%d errno=%d %s \n",
+                    fd_server.fd,result , errno,strerror(errno));
+        }
+//        fprintf(stderr,"_3_ \n");
+
+        if ( 0 < result)
+        {
+//            fprintf(stderr,"_4_ \n");
+            memset(vClientfilename,0,sizeof(vClientfilename));
+
+            errno = 0;
+            result = mq_receive(fd_server.fd, vClientfilename,
+                    sizeof(vClientfilename),0);
+//            fprintf(stderr,"_5_ \n");
+
+            if ( (0 == result) || (-1 == result))
+            {
+                fprintf(stderr,"poll(%d) result=%d errno=%d %s \n",
+                        fd_server.fd,result , errno,strerror(errno));
+            }
+            else
+            {
+                result = 0;
+            }
+
+//            printf("vClientfilename=%s \n",vClientfilename);
+        }
+//        fprintf(stderr,"_6_ \n");
+
+        if( 0 == result )
+        {
+//            fprintf(stderr,"_7_ \n");
+            //**********************************************************
+            // open mq client
+            //**********************************************************
+            errno = 0;
+            fd_client.fd = mq_open(vClientfilename,
+                    O_WRONLY);//,S_IRWXO | S_IRWXG | S_IRWXU ,&vAttr);
+
+            if( -1 == fd_server.fd )
+            {
+                fprintf(stderr,"mq_open(vClientfilename) result=%d errno=%d %s \n",
+                        result , errno,strerror(errno));
+                result = errno;
+            }
+        }
+
+//        fprintf(stderr,"_8_ \n");
+
+        if( 0 == result )
+        {
+            memset(vBufferOUT,0,sizeof(vBufferOUT));
+
+//            fprintf(stderr,"_9_ \n");
+
+            double dblValue = getDateRawDouble();
+            memcpy(vBufferOUT,&dblValue,sizeof(dblValue));
+            // send msg to server
+            //int mq_send(mqd_t mqdes, const char *msg_ptr,size_t msg_len, unsigned int msg_prio);
+
+            result = mq_send(fd_client.fd, vBufferOUT,
+                    sizeof(dblValue),0);
+
+            fprintf(stderr,"_10_ %s=%f result=%d sizeof(dblValue)=%lu\n",
+                    vClientfilename,dblValue,result,sizeof(dblValue));
+
+            if ( 0 != result)
+            {
+                fprintf(stderr,"mq_send(%d) result=%d errno=%d %s \n",
+                        fd_client.fd,result , errno,strerror(errno));
+            }
+        }
+//        fprintf(stderr,"_11_ \n");
+
+
+
+
+        //        //receive msg in client
+        //        vLenReceive =  mq_receive(fd_server.fd,
+        //                vBufferOUT,
+        //                LIBMESSAGE_MAX_BUFFER,
+        //                0U);
+
+        //sleep(1);
+    }while(1);
+}
 static int libmessage_cbfcnt_getdate(char* a_pData)
 {
     int result = 0;
     char outstr[200];
-     time_t t;
-     struct tm *tmp;
+    time_t t;
+    struct tm *tmp;
 
-     t = time(NULL);
-     tmp = localtime(&t);
+    t = time(NULL);
+    tmp = localtime(&t);
 
-     strftime(outstr, sizeof(outstr), "%a, %d %b %Y %T %z", tmp) ;
+    strftime(outstr, sizeof(outstr), "%a, %d %b %Y %T %z", tmp) ;
 
 
-     strncpy(a_pData,outstr,LIBMESSAGE_MAX_BUFFER-1);
+    strncpy(a_pData,outstr,LIBMESSAGE_MAX_BUFFER-1);
 
     printf("libmessage_cbfcnt_getdate: date=%s\n",a_pData);
 
@@ -61,14 +194,15 @@ int main(void)
 {
     int result = 0;
 
+    test_msgQueue();
 
-    result =  libmessage_register_service(
-            LIBMESSAGE_SRVID_TIME,
-            SERVER_TIME_ID_GETDATE ,
-            &libmessage_cbfcnt_getdate);
+    //    result =  libmessage_register_service(
+    //            LIBMESSAGE_SRVID_TIME,
+    //            SERVER_TIME_ID_GETDATE ,
+    //            &libmessage_cbfcnt_getdate);
 
-//    result = libmessage_register_service_time( SERVER_TIME_SETDATE, libmessage_cbfcnt_setdate);
-//    result = libmessage_register_service_time( SERVER_TIME_SIGNAL,  libmessage_cbfcnt_signal,     libmessage_cbfcnt_signal);
+    //    result = libmessage_register_service_time( SERVER_TIME_SETDATE, libmessage_cbfcnt_setdate);
+    //    result = libmessage_register_service_time( SERVER_TIME_SIGNAL,  libmessage_cbfcnt_signal,     libmessage_cbfcnt_signal);
 
     result = libmessage_server_wait();
 

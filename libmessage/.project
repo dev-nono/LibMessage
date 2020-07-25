@@ -23,4 +23,16 @@
 		<nature>org.eclipse.cdt.managedbuilder.core.managedBuildNature</nature>
 		<nature>org.eclipse.cdt.managedbuilder.core.ScannerConfigNature</nature>
 	</natures>
+	<linkedResources>
+		<link>
+			<name>inc/utils.h</name>
+			<type>1</type>
+			<location>/media/ssd_data/home/bruno/Dev/projects/Project/common/inc/utils.h</location>
+		</link>
+		<link>
+			<name>src/utils.c</name>
+			<type>1</type>
+			<location>/media/ssd_data/home/bruno/Dev/projects/Project/common/src/utils.c</location>
+		</link>
+	</linkedResources>
 </projectDescription>
