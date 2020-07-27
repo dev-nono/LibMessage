@@ -18,12 +18,18 @@
 #include <poll.h>
 #include <errno.h>
 
+#include "apisyslog.h"
 #include "utils.h"
-#include "libmessage_int.h"
-#include "libmessage.h"
+
+
+#include "libmsg.h"
+//#include "libmessage_int.h"
+//#include "libmessage.h"
 
 int test_msgQueue()
 {
+#define LIBMESSAGE_MAX_BUFFER 1024
+
     int result = 0;
     int vLenReceive = 0;
     char vClientfilename[PATH_MAX] = "";
@@ -45,12 +51,15 @@ int test_msgQueue()
     //**********************************************************
     // open mq server
     //**********************************************************
-    mq_unlink(SERVER_TIME);
+ //   mq_unlink(SERVER_TIME);
     errno  = 0;
     fd_server.fd = mq_open(SERVER_TIME,
             O_CREAT | O_RDONLY,S_IRWXO | S_IRWXG | S_IRWXU ,&vAttr);
 
     fprintf(stderr,"_1_ \n");
+
+//    printf("type any key to continue. \n");
+//    getchar();
 
     if( -1 == fd_server.fd )
     {
@@ -116,6 +125,7 @@ int test_msgQueue()
             }
         }
 
+
 //        fprintf(stderr,"_8_ \n");
 
         if( 0 == result )
@@ -129,11 +139,13 @@ int test_msgQueue()
             // send msg to server
             //int mq_send(mqd_t mqdes, const char *msg_ptr,size_t msg_len, unsigned int msg_prio);
 
+            errno = 0;
             result = mq_send(fd_client.fd, vBufferOUT,
                     sizeof(dblValue),0);
 
-            fprintf(stderr,"_10_ %s=%f result=%d sizeof(dblValue)=%lu\n",
-                    vClientfilename,dblValue,result,sizeof(dblValue));
+            fprintf(stderr,"_10_ %s=%f result=%d sizeof(dblValue)=%lu errno=%d %s\n",
+                    vClientfilename,dblValue,result,sizeof(dblValue),
+                    errno,strerror(errno));
 
             if ( 0 != result)
             {
@@ -143,8 +155,7 @@ int test_msgQueue()
         }
 //        fprintf(stderr,"_11_ \n");
 
-
-
+        mq_close(fd_client.fd);
 
         //        //receive msg in client
         //        vLenReceive =  mq_receive(fd_server.fd,
@@ -155,22 +166,34 @@ int test_msgQueue()
         //sleep(1);
     }while(1);
 }
-static int libmessage_cbfcnt_getdate(char* a_pData)
+static int libmsg_cbfcnt_getdate(void *a_pContext)
 {
     int result = 0;
-    char outstr[200];
-    time_t t;
-    struct tm *tmp;
+    char msgbuffer[APISYSLOG_MSG_SIZE] = {0};
 
-    t = time(NULL);
-    tmp = localtime(&t);
+    //sRequest_t *  pRequest   = (sRequest_t*) a_pRequest;
 
-    strftime(outstr, sizeof(outstr), "%a, %d %b %Y %T %z", tmp) ;
+    // no inputdata in request
+    sRequest_t *  pRequest   =     &( (sDataThreadCtx_t*) a_pContext)->dataService.request;
+    sResponse_t * pResponse  =     &( (sDataThreadCtx_t*) a_pContext)->dataService.response;
 
+//    sGetdateResponse_t  *pData      = (sGetdateResponse_t *)&pResponse->data;
+//
+//    pResponse->header.datasize =
+//            sizeof(sHeader_t) + sizeof(sGetdateResponse_t);
+//
+//    result = clock_gettime(CLOCK_MONOTONIC_RAW,
+//            &pData->timespesc);
+//
+//    snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
+//            " : date=%ld.%09ld result=%d\n",
+//            pData->timespesc.tv_sec,
+//            pData->timespesc.tv_nsec,
+//            result);
+//
+//    pResponse->header.result = result;
 
-    strncpy(a_pData,outstr,LIBMESSAGE_MAX_BUFFER-1);
-
-    printf("libmessage_cbfcnt_getdate: date=%s\n",a_pData);
+    TRACE_LOG(msgbuffer);
 
     return result;
 }
@@ -204,7 +227,8 @@ int main(void)
     //    result = libmessage_register_service_time( SERVER_TIME_SETDATE, libmessage_cbfcnt_setdate);
     //    result = libmessage_register_service_time( SERVER_TIME_SIGNAL,  libmessage_cbfcnt_signal,     libmessage_cbfcnt_signal);
 
-    result = libmessage_server_wait();
+    result = libmsg_srvtime_register_getdate(libmsg_cbfcnt_getdate);
+    result = libmsg_srvtime_wait();
 
     return result;
 }

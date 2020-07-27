@@ -15,6 +15,7 @@
 #include <errno.h>
 #include <string.h>
 #include <poll.h>
+#include <pthread.h>
 
 
 // #define _GNU_SOURCE
@@ -23,141 +24,101 @@
 #include <sys/types.h>
 #include <limits.h>
 
-#include "libmessage_int.h"
-#include "libmessage.h"
+#include "utils.h"
 
 
+#include "libmsg_srvtime.h"
+//#include "libmessage_int.h"
+//#include "libmessage.h"
 
-static char g_arrayServiceName[][NAME_MAX] =
+
+// client  : /process.id.svc
+// server  : /process.svc
+//
+
+static sDataThreadCtx_t g_TheadCtx_getdate  = {0};
+//static sDataThreadCtx_t g_TheadCtx_setdate= {0};
+//static sDataThreadCtx_t g_TheadCtx_Signaldate= {0};
+
+
+//************************************************************
+//  client side
+//      _OUT_ double *a_pDate : buffer data output
+//      return:
+//          SUCCESS    0
+//          EINVAL          22  Invalid argument
+//************************************************************
+int libmsg_srvtime_getdate( _IN_ const char* a_UniqID, _OUT_ double *a_Date)
 {
-        {SERVER_TIME_GETDATE},
-        {SERVER_TIME_SETDATE},
-        {SERVER_TIME_ID_SIGNAL}
-};
+    int     result                  = 0;
+    char    vBufferIN[HARD_MAX]     = {0};
+    uint32_t SizeBuffIn             = 0;
+    char    vBufferOUT[HARD_MAX]    = {0};
+    uint32_t SizeBuffOut            = sizeof(vBufferOUT);
+    char    vClientName[NAME_MAX]   = {0};
 
 
-const char* get_arrayServiceName(uint32_t a_ServiceID )
-{
-    return  g_arrayServiceName[a_ServiceID] ;
+    result = getMQname(a_UniqID,SVC_GETDATE,vClientName);
+
+
+    strncpy(vBufferIN,vClientName,HARD_MAX);
+    SizeBuffIn = strlen(vBufferIN);
+
+
+    result = libmsg_cli_getdata( vClientName,SERVER_TIME_GETDATE,
+            SizeBuffIn, vBufferIN,
+            SizeBuffOut,vBufferOUT);
+
+    if( 0 == result )
+    {
+        *a_Date = *((double*)vBufferOUT);
+    }
+
+    return result;
+
 }
 
 //************************************************************
 //*
 //************************************************************
-int libmessage_getdate( const char* a_Callername,
-                        //const char* a_Servername,
-                        uint32_t         a_ServiceID,
-                        double *a_Date)
+int libmsg_srvtime_register_getdate(libmsg_pFunctCB_t a_pFunctCB)
 {
-    int             result  = 0;
-    struct mq_attr  vAttr   = {0};
-    mqd_t           vFdServer_getdate   = -1;
-    mqd_t           vFdPidClient        = -1;
-    char            vPidClientName[NAME_MAX+1] = {0};
-    ssize_t         vLenReceive                = 0;
-    char            vBuffer[sizeof(double)];
-    pid_t           vTid = syscall(SYS_gettid);
+    int result = 0;
 
-    vAttr.mq_flags =     O_CLOEXEC;
+    //*****************************
+    // prepare data thread
+    //*****************************
 
-    if( (0 == a_Callername) || (0 == (a_Date) ) )
-    {
-        result = EINVAL;
-    }
+   //sDataThreadCtx_t    *pDataThreadCtx = getTheadCtx(eLIBMSG_ID_GETDATA);
 
-    if( 0 == result )
-    {
-        snprintf(vPidClientName,NAME_MAX,"/%s.%d",a_Callername,vTid);
-        *a_Date = 0.0;
+    g_TheadCtx_getdate.dataService.pFunctCB = a_pFunctCB;
 
-        vAttr.mq_flags  = O_CLOEXEC;
-        vAttr.mq_curmsgs = 9;
-        vAttr.mq_maxmsg = 9;
-        vAttr.mq_msgsize = 1024;
-        errno           = 0;
+   strncpy(g_TheadCtx_getdate.dataService.filenameServer,
+           SERVER_TIME_GETDATE,
+           sizeof(g_TheadCtx_getdate.dataService.filenameServer)-1);
 
-        //********************************
-        // open mq server
-        //********************************
-        vFdServer_getdate =  mq_open(get_arrayServiceName(a_ServiceID),
-                O_RDWR,S_IRWXO | S_IRWXG | S_IRWXU,&vAttr);
 
-        if( vFdServer_getdate  == ( (mqd_t)(-1) ))
-        {   //  error
-            result = errno;
-            printf("libmessage_getdate: mq_open(%s) error %d  %s",
-                    get_arrayServiceName(a_ServiceID),result,strerror(result));
-        }
-    }
-    //********************************
-    // open mq for response
-    //********************************
-    if( 0 == result )
-    {
-        vAttr.mq_flags  = O_CLOEXEC;
-        vAttr.mq_curmsgs = 9;
-        vAttr.mq_maxmsg = 9;
-        vAttr.mq_msgsize = 1024;
-        errno           = 0;
+//   strncpy(g_TheadCtx_getdate.dataService.filenameSemaphore,
+//           getNameService(eLIBMSG_ID_GETDATA,eLIBMSG_COL_SEM),NAME_MAX-1);
 
-        vFdPidClient =  mq_open(vPidClientName,
-                O_CREAT,S_IRWXO | S_IRWXG | S_IRWXU ,&vAttr);
+    result = libmsg_server_register_svc(&g_TheadCtx_getdate);
 
-        if( ( (mqd_t)(-1) ) == vFdPidClient)
-        {   //  error
-            result = errno;
-            printf("libmessage_getdate: mq_open(%s) error %d  %s",
-                    vPidClientName,result,strerror(result));
-        }
-    }
-    //********************************
-    // send request getdate
-    //********************************
-    if( 0 == result )
-    {
-        result = mq_send(vFdServer_getdate, "0",2, 0U);
+    return result;
+}
+//************************************************************
+//*
+//************************************************************
+int libmsg_srvtime_wait()
+{
+    int result = 0;
 
-        if( -1 == result )
-        {   //  error
-            result = errno;
-            printf("libmessage_getdate: mq_send(%s) error %d  %s",
-                    get_arrayServiceName(a_ServiceID),result,strerror(result));
-        }
-    }
+    result = pthread_join(g_TheadCtx_getdate.pthreadID,0);
 
-    //********************************
-    // wait receive date
-    //********************************
-    if( 0 == result )
-    {
-        vLenReceive =  mq_receive(vFdPidClient,
-                vBuffer,
-                sizeof(vBuffer),
-                0U);
 
-        if( (-1) == vLenReceive )
-        {
-            result = errno;
-            printf("libmessage_getdate: mq_receive(%s) error %d  %s\n",
-                    vPidClientName,result,strerror(result));
-        }
-        if( sizeof(vBuffer)    != vLenReceive )
-        {
-            printf("libmessage_getdate: mq_receive(%lu,%s) error vLenReceive=%ld\n",
-                    sizeof(vBuffer),vPidClientName,vLenReceive);
-            result = EMSGSIZE;
-        }
-        if( sizeof(vBuffer) == vLenReceive )
-        {
-            *a_Date =  *((double*)&vBuffer);
-        }
-    }
-    if( (-1) != vFdServer_getdate )
-        mq_close(vFdServer_getdate);
-    if( (-1) != vFdPidClient )
-        mq_close(vFdPidClient);
-    if ( 0 != (*vPidClientName) )
-            mq_unlink(vPidClientName);
+    //*****************************
+    // LIBMESSAGE_ID_END
+    //*****************************
 
+    // wait on end of thread
     return result;
 }

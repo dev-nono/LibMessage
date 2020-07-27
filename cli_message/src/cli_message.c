@@ -10,20 +10,29 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <mqueue.h>
 #include <poll.h>
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
+#include <limits.h>
+
+#include <fcntl.h>           /* Pour les constantes O_* */
+#include <sys/stat.h>        /* Pour les constantes des modes */
+#include <mqueue.h>
 
 // include ==>  libmessage.h
 #include "utils.h"
-#include "libmessage.h"
-#include "libmessage_int.h"
+//#include "libmessage.h"
+//#include "libmessage_int.h"
+#include "libmsg_srvtime.h"
 
 
-int test_msgQueue()
+
+
+int test_msgQueue(char *a_ID)
 {
+#define SERVER_TIME "toto"
+
     int result = 0;
     int vLenReceive = 0;
     char vClientfilename[PATH_MAX] = "";
@@ -33,14 +42,14 @@ int test_msgQueue()
     struct pollfd fd_client = {0};
     struct pollfd fd_server = {0};
 
-    char    vBufferIN[LIBMESSAGE_MAX_BUFFER] = {0};
-    char    vBufferOUT[LIBMESSAGE_MAX_BUFFER] = {0};
+    char    vBufferIN[HARD_MAX] = {0};
+    char    vBufferOUT[HARD_MAX] = {0};
 
 
     vAttr.mq_flags  = O_CLOEXEC;
     vAttr.mq_curmsgs = 1;
-    vAttr.mq_maxmsg = 10;
-    vAttr.mq_msgsize = LIBMESSAGE_MAX_BUFFER;
+    vAttr.mq_maxmsg = 1;
+    vAttr.mq_msgsize = HARD_MAX;
 
     //**********************************************************
     // open mq server
@@ -63,15 +72,15 @@ int test_msgQueue()
         //**********************************************************
         // open mq client
         //**********************************************************
-        getMQname(vClientfilename);
+        getMQname(a_ID,"getdate",vClientfilename);
 
-        fprintf(stderr,"_3_ \n");
+        fprintf(stderr,"_3_ name=%s \n",vClientfilename);
 
-        mq_unlink(vClientfilename);
+        //mq_unlink(vClientfilename);
 
         errno = 0;
         fd_client.fd = mq_open(vClientfilename,
-                O_CREAT |O_RDONLY,S_IRWXO | S_IRWXG | S_IRWXU ,&vAttr);
+                O_CREAT | O_RDONLY , S_IRWXO | S_IRWXG | S_IRWXU ,&vAttr);
         if( -1 == fd_client.fd )
         {
             fprintf(stderr,"mq_open(%s) result=%d errno=%d %s \n",
@@ -79,6 +88,7 @@ int test_msgQueue()
         }
         fprintf(stderr,"_4_ \n");
 
+        fushMessageQueue( fd_client.fd);
         // prepare msg
 
         do{
@@ -89,11 +99,11 @@ int test_msgQueue()
             result = mq_send(fd_server.fd, vClientfilename,
                     strlen(vClientfilename)+1,0);
 
-            result = mq_send(fd_server.fd, vClientfilename,
-                    strlen(vClientfilename)+1,0);
+//            result = mq_send(fd_server.fd, vClientfilename,
+//                    strlen(vClientfilename)+1,0);
 
-            printf("type any key to continue. \n");
-            getchar();
+//            printf("type any key to continue. \n");
+//            getchar();
             //            fprintf(stderr,"_6_ \n");
 
             if( 0 != result)
@@ -107,7 +117,7 @@ int test_msgQueue()
             //receive msg in client
             vLenReceive =  mq_receive(fd_client.fd,
                     vBufferOUT,
-                    LIBMESSAGE_MAX_BUFFER,
+                    HARD_MAX,
                     0U);
 
             double *pDbl = (double*)&vBufferOUT;
@@ -123,15 +133,23 @@ int test_msgQueue()
 
 }
 
-int main(void)
+int main(int argc, char* argv[])
 {
     int     result = 0;
     double  vDate = 0.0;
 
+
 //    result = libmessage_getdate("cli_message",SERVER_TIME_ID_GETDATE,&vDate);
 //    printf("\ncli_message : result = %d date = %f \n",result,vDate);
 
-    test_msgQueue();
+    if(argc > 1 )
+    {
+        result =  libmsg_srvtime_getdate(argv[1], &vDate);
+    }
+    else
+    {
+        fprintf(stderr,"error missing argument ID \n");
+    }
 
     return EXIT_SUCCESS;
 }

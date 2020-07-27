@@ -18,11 +18,13 @@
 
 #define LIBMESSAGE_MAX_BUFFER 1024
 
+#define SVC_GETDATE     "getdate"
+
 //******************************************************
 //  services "server_time"
 //******************************************************
-#define SERVER_TIME             "/server_time"
-#define SERVER_TIME_GETDATE     SERVER_TIME".getdate"
+#define SERVER_TIME             "/srvtime"
+#define SERVER_TIME_GETDATE     SERVER_TIME"."SVC_GETDATE
 #define SERVER_TIME_SETDATE     SERVER_TIME".setdate"
 #define SERVER_TIME_SIGNAL      SERVER_TIME".signal"
 

@@ -9,6 +9,8 @@
 #define INC_LIBMESSAGE_H_
 
 #include <stdint.h>
+
+#include "utils.h"
 #include "libmessage_common.h"
 
 
@@ -54,6 +56,8 @@ int libmessage_register_service(
 int libmessage_server_wait();
 
 //int libmessage_client_register();
+
+int libmsg_getdate( _IN_ const char* a_UniqID, _OUT_ double *a_Date);
 
 
 #endif /* INC_LIBMESSAGE_H_ */
