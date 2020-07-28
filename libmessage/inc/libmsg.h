@@ -62,6 +62,9 @@ struct sResponse
 
 };
 typedef struct sResponse sResponse_t;
+
+typedef int (*libmsg_pFunctCB_t)(sRequest_t  *a_pRequest,sResponse_t *a_pResponse);
+
 //*****************************************************
 struct sDataService
 //*****************************************************
@@ -72,8 +75,8 @@ struct sDataService
     libmsg_pFunctCB_t   pFunctCB;
     int                     id;
 
-    sRequest_t     request;
-    sResponse_t    response;
+//    sRequest_t     request;
+//    sResponse_t    response;
 
 
 };
@@ -95,11 +98,9 @@ struct sDataThreadCtx
 typedef struct sDataThreadCtx sDataThreadCtx_t;
 int     libmsg_cli_getdata(
         _IN_ const char     *a_Srvname,
-        _IN_ const char     *a_Clientname,
-        _IN_ const uint32_t  a_SizeBuffIn,
-        _IN_ const char     *a_BufferIN,
-        _IN_ const uint32_t  a_SizeBuffOut,
-        _OUT_      char     *a_BufferOUT);
+        const sRequest_t    *a_pRequest,
+        sResponse_t         *a_pResponse);
+
 
 
 

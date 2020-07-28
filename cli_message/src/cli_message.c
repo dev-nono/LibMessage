@@ -45,6 +45,8 @@ int test_msgQueue(char *a_ID)
     char    vBufferIN[HARD_MAX] = {0};
     char    vBufferOUT[HARD_MAX] = {0};
 
+    (void)vServerfilename;
+    (void)vBufferIN;
 
     vAttr.mq_flags  = O_CLOEXEC;
     vAttr.mq_curmsgs = 1;
@@ -148,7 +150,7 @@ int check_loop(const char* a_UniqID)
 
 int main(int argc, char* argv[])
 {
-    int     result = 0;
+    int     result = EXIT_SUCCESS;
 
 
     apisyslog_init("");
@@ -167,5 +169,5 @@ int main(int argc, char* argv[])
         fprintf(stderr,"error missing argument ID \n");
     }
 
-    return EXIT_SUCCESS;
+    return result;
 }// int main(int argc, char* argv[])

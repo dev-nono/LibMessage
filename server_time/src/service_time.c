@@ -44,6 +44,11 @@ int test_msgQueue()
     char    vBufferOUT[LIBMESSAGE_MAX_BUFFER] = {0};
 
 
+    (void)vBufferIN;
+    (void)vServerfilename;
+    (void)vLenReceive;
+
+
     vAttr.mq_flags  = O_CLOEXEC;
     vAttr.mq_curmsgs = 1;
     vAttr.mq_maxmsg = 10;
@@ -167,20 +172,20 @@ int test_msgQueue()
         //sleep(1);
     }while(1);
 }
-static int libmsg_cbfcnt_getdate(void *a_pContext)
+static int libmsg_cbfcnt_getdate(
+        //void *a_pContext)
+        sRequest_t  *a_pRequest,
+        sResponse_t *a_pResponse)
+
 {
     int result = 0;
     char msgbuffer[APISYSLOG_MSG_SIZE] = {0};
 
-    //sRequest_t *  pRequest   = (sRequest_t*) a_pRequest;
+    (void)a_pRequest;
 
-    // no inputdata in request
-    sRequest_t *  pRequest   =     &( (sDataThreadCtx_t*) a_pContext)->dataService.request;
-    sResponse_t * pResponse  =     &( (sDataThreadCtx_t*) a_pContext)->dataService.response;
+    sGetdateResponse_t  *pData      = (sGetdateResponse_t *)&a_pResponse->data;
 
-    sGetdateResponse_t  *pData      = (sGetdateResponse_t *)&pResponse->data;
-
-    pResponse->header.datasize =
+    a_pResponse->header.datasize =
             sizeof(sHeader_t) + sizeof(sGetdateResponse_t);
 
     result = clock_gettime(CLOCK_MONOTONIC_RAW,
@@ -192,7 +197,7 @@ static int libmsg_cbfcnt_getdate(void *a_pContext)
             pData->timespesc.tv_nsec,
             result);
 
-    pResponse->header.result = result;
+    a_pResponse->header.result = result;
 
     TRACE_LOG(msgbuffer);
 

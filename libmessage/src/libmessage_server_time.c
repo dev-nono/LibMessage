@@ -52,28 +52,20 @@ static sDataThreadCtx_t g_TheadCtx_getdate  = {0};
 int libmsg_srvtime_getdate( _IN_ const char* a_UniqID, _OUT_ double *a_Date)
 {
     int     result                  = 0;
-    char    vBufferIN[HARD_MAX]     = {0};
-    uint32_t SizeBuffIn             = 0;
-    char    vBufferOUT[HARD_MAX]    = {0};
-    uint32_t SizeBuffOut            = sizeof(vBufferOUT);
-    char    vClientName[NAME_MAX]   = {0};
-    sGetdateResponse_t  *pResponse  = 0;
     char msgbuffer[APISYSLOG_MSG_SIZE] = {0};
 
-    result = getMqClientname(a_UniqID,SVC_GETDATE,vClientName);
+    sRequest_t          request  = {0};
+    sResponse_t         response = {0};
+    sGetdateResponse_t  *pResponse  = 0;
 
-    strncpy(vBufferIN,vClientName,HARD_MAX);
-    SizeBuffIn = strlen(vBufferIN)+1;
+    result = getMqClientname(a_UniqID,SVC_GETDATE,request.filenameClient);
 
     result = libmsg_cli_getdata( SERVER_TIME_GETDATE,
-            vClientName,
-            SizeBuffIn, vBufferIN,
-            SizeBuffOut,vBufferOUT);
+            &request,&response);
 
     if( 0 == result )
     {
-        pResponse  = (sGetdateResponse_t*)((sResponse_t*) vBufferOUT)->data;
-
+        pResponse  = (sGetdateResponse_t  *)response.data ;
         *a_Date = getDateDouble(pResponse->timespesc);
 
         snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
@@ -83,8 +75,6 @@ int libmsg_srvtime_getdate( _IN_ const char* a_UniqID, _OUT_ double *a_Date)
                 *a_Date,
                 result);
         TRACE_LOG(msgbuffer);
-
-
     }
 
     return result;
@@ -101,18 +91,16 @@ int libmsg_srvtime_register_getdate(libmsg_pFunctCB_t a_pFunctCB)
     // prepare data thread
     //*****************************
 
-   //sDataThreadCtx_t    *pDataThreadCtx = getTheadCtx(eLIBMSG_ID_GETDATA);
-
     g_TheadCtx_getdate.dataService.pFunctCB = a_pFunctCB;
 
-   strncpy(g_TheadCtx_getdate.dataService.filenameServer,
-           SERVER_TIME_GETDATE,
-           sizeof(g_TheadCtx_getdate.dataService.filenameServer)-1);
+    strncpy(g_TheadCtx_getdate.dataService.filenameServer,
+            SERVER_TIME_GETDATE,
+            sizeof(g_TheadCtx_getdate.dataService.filenameServer)-1);
 
 
 
-   strncpy(g_TheadCtx_getdate.dataService.filenameSemaphore,
-           SERVER_TIME_GETDATE,strlen(SERVER_TIME_GETDATE)+1);
+    strncpy(g_TheadCtx_getdate.dataService.filenameSemaphore,
+            SERVER_TIME_GETDATE,strlen(SERVER_TIME_GETDATE)+1);
 
     result = libmsg_srv_register_svc(&g_TheadCtx_getdate);
 

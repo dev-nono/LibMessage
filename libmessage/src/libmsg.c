@@ -29,25 +29,17 @@
 
 
 int libmsg_cli_getdata(
-        _IN_ const char *a_Srvname,
-        _IN_ const char *a_Clientname,
-        _IN_ const uint32_t a_SizeBuffIn,
-        _IN_ const char *a_BufferIN,
-        _IN_ const uint32_t a_SizeBuffOut,
-        _OUT_      char *a_BufferOUT)
+        _IN_ const  char        *a_Srvname,
+            const   sRequest_t  *a_pRequest,
+                    sResponse_t *a_pResponse
+        )
 {
     int result = 0;
     int vLenReceive = 0;
-//    char vClientfilename[PATH_MAX] = "";
-//    char vServerfilename[PATH_MAX] = SERVER_TIME;
     struct mq_attr  vAttr   = {0};
 
     struct pollfd fd_client = {0};
     struct pollfd fd_server = {0};
-
-//    char    vBufferIN[LIBMESSAGE_MAX_BUFFER] = {0};
-//    char    vBufferOUT[LIBMESSAGE_MAX_BUFFER] = {0};
-
 
     vAttr.mq_flags  = O_CLOEXEC;
     vAttr.mq_curmsgs = 1;
@@ -57,7 +49,6 @@ int libmsg_cli_getdata(
     //**********************************************************
     // open mq server
     //**********************************************************
-
     errno = 0;
     fd_server.fd = mq_open(a_Srvname,O_WRONLY);
                 //,S_IRWXO | S_IRWXG | S_IRWXU ,&vAttr);
@@ -73,15 +64,16 @@ int libmsg_cli_getdata(
         //**********************************************************
         // open mq client
         //**********************************************************
-        mq_unlink(a_Clientname);
+        mq_unlink(a_pRequest->filenameClient);
 
         errno = 0;
-        fd_client.fd = mq_open(a_Clientname,
+        fd_client.fd = mq_open(a_pRequest->filenameClient,
                 O_CREAT | O_RDONLY , S_IRWXO | S_IRWXG | S_IRWXU ,&vAttr);
         if( -1 == fd_client.fd )
         {
             fprintf(stderr,"mq_open(%s) result=%d errno=%d %s \n",
-                    a_Clientname,result , errno,strerror(errno));
+                    a_pRequest->filenameClient,
+                    result , errno,strerror(errno));
         }
     }
     if( 0 == result )
@@ -94,7 +86,8 @@ int libmsg_cli_getdata(
     {
 
         // send msg to server
-        result = mq_send(fd_server.fd, a_BufferIN,a_SizeBuffIn,0);
+        result = mq_send(fd_server.fd, (char*)a_pRequest,
+                sizeof(sRequest_t),0);
 
         if( 0 != result)
         {
@@ -105,12 +98,12 @@ int libmsg_cli_getdata(
 
     if( 0 == result )
     {
-        memset(a_BufferOUT,0,a_SizeBuffOut);
+        memset(a_pResponse,0,sizeof(sResponse_t));
 
         //receive msg in client
         vLenReceive =  mq_receive(fd_client.fd,
-                a_BufferOUT,
-                HARD_MAX,
+                (char*)a_pResponse,
+                sizeof(sResponse_t),
                 0U);
     }
 
@@ -129,12 +122,12 @@ static void * libmsg_srv_threadFunction(void * a_pArg)
     struct pollfd   fd_client   = {0};
     struct pollfd   fd_server   = {0};
     struct mq_attr  vAttr       = {0};
+
     char        msgbuffer[APISYSLOG_MSG_SIZE]   = {0};
 
-    char    vBufferIN[HARD_MAX]     = {0};
-    uint32_t SizeBuffIn             = 0;
-    char    vBufferOUT[HARD_MAX]    = {0};
-    uint32_t SizeBuffOut            = sizeof(vBufferOUT);
+    char    buffRequest[1204*100];
+    sRequest_t  request = {0};
+    sResponse_t response= {0};
 
 
     mq_unlink(pContex->dataService.filenameServer);
@@ -169,8 +162,12 @@ TRACE_DBG1("_1_")
     if(0 == result)
     {
         do{
-            TRACE_DBG1("_2_")
-                        //***********************************************************
+
+            memset(&request ,0,sizeof(request));
+            memset(&response,0,sizeof(response));
+
+            TRACE_DBG1("_2_");
+            //***********************************************************
             //                  POLL
             //***********************************************************
             fd_server.events = POLLIN | POLLPRI;
@@ -210,11 +207,11 @@ TRACE_DBG1("_1_")
             {
                 TRACE_DBG1("_4_");
                //            fprintf(stderr,"_4_ \n");
-                memset(vBufferOUT,0,sizeof(vBufferOUT));
+                memset( buffRequest,0,sizeof(buffRequest));
 
                 errno = 0;
-                result = mq_receive(fd_server.fd, vBufferOUT,
-                        sizeof(vBufferOUT),0);
+                result = mq_receive(fd_server.fd, buffRequest,
+                        sizeof(buffRequest),0);
                 //            fprintf(stderr,"_5_ \n");
                 TRACE_DBG1("_5_ result=0x%X",result);
 
@@ -240,15 +237,17 @@ TRACE_DBG1("_1_")
             if ( 0 == result)
             {
                 TRACE_DBG1("_6_ result=0x%X",result);
-             errno = 0;
-                fd_client.fd = mq_open(vBufferOUT,O_WRONLY);
+                memcpy(&request, buffRequest,sizeof(request));
+
+                errno = 0;
+                fd_client.fd = mq_open(request.filenameClient,O_WRONLY);
 
                 if( -1 == fd_client.fd )
                 {
                     result = errno;
                     snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
                             "mq_open(%.50s) result=%d errno=%d %s \n",
-                            vBufferOUT,
+                            request.filenameClient,
                             result , errno,strerror(errno));
                     TRACE_ERR(msgbuffer);
                 }
@@ -257,27 +256,22 @@ TRACE_DBG1("_1_")
             {
                 TRACE_DBG1("_7_ result=0x%X",result);
 
-                result = pContex->dataService.pFunctCB(pContex);
+                result = pContex->dataService.pFunctCB(&request,&response);
 
-
-                memset(vBufferIN,0,sizeof(vBufferIN));
-
-
-                // send msg to server
+               // send msg to server
                 errno = 0;
-                result = mq_send(fd_client.fd, (char*)&pContex->dataService.response,
-                        pContex->dataService.response.header.datasize,0);
+                result = mq_send(fd_client.fd, (char*)&response,
+                        response.header.datasize,0);
 
                 TRACE_DBG2("_8_mq_send()=%d size=%d errno=%u %s\n",
                         result,
-                        pContex->dataService.response.header.datasize,
+                        response.header.datasize,
                         errno,strerror(errno));
 
                 if ( 0 != result)
                 {
                     snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
-                            "error mq_send(%.50s) result=%d errno=%d %s \n",
-                            vBufferOUT,
+                            "error mq_send() result=%d errno=%d %s \n",
                             result , errno,strerror(errno));
                     TRACE_ERR(msgbuffer);
                 }
@@ -301,61 +295,22 @@ int libmsg_srv_register_svc(sDataThreadCtx_t *a_pDataThreadCtx)
     int result = 0;
     char msgbuffer[APISYSLOG_MSG_SIZE] = {0};
 
-    //**************************************************
-    //*  create semaphore
-    //**************************************************
-//    if( 0 == result )
-//    {
-//        errno = 0;
-//        result = sem_unlink(a_pDataThreadCtx->dataService.filenameSemaphore);
-//        if( 0 != result )
-//        {
-//            snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
-//                    ": sem_unlink(%s) result=%d errno=%d %s",
-//                    a_pDataThreadCtx->dataService.filenameSemaphore,
-//                    result,errno,strerror(errno));
-//
-//            fprintf(stderr,"%s : %s \n",__FUNCTION__, msgbuffer);
-//            TRACE_ERR(msgbuffer);
-//        }
-//
-//        result = 0;
-//        errno = 0;
-//        a_pDataThreadCtx->dataService.pSemsvc = sem_open(
-//                a_pDataThreadCtx->dataService.filenameSemaphore,
-//                O_CREAT,S_IRWXU,1U);
-//        if( SEM_FAILED == a_pDataThreadCtx->dataService.pSemsvc)
-//        {
-//            snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
-//                    "sem_open(%s) result=0x%p errno=%d %s",
-//                    a_pDataThreadCtx->dataService.filenameSemaphore,
-//                    (void*)a_pDataThreadCtx->dataService.pSemsvc,
-//                    errno,strerror(errno));
-//
-//            fprintf(stderr,"%s : %s\n",__FUNCTION__, msgbuffer);
-//            TRACE_ERR(msgbuffer);
-//        }
-//    }
+    //*****************************
+    // create new tread for listening incomming messages
+    //*****************************
+    errno = 0;
+    result =  pthread_create(&a_pDataThreadCtx->pthreadID,
+            NULL,
+            &libmsg_srv_threadFunction,
+            (void*)a_pDataThreadCtx);
 
-    if( 0 == result )
+    if( 0 != result )
     {
-       //*****************************
-        // create new tread for listening incomming messages
-        //*****************************
-        errno = 0;
-        result =  pthread_create(&a_pDataThreadCtx->pthreadID,
-                NULL,
-                &libmsg_srv_threadFunction,
-                (void*)a_pDataThreadCtx);
+        snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
+                ": pthread_create() error =%d %s",
+                result,strerror(result));
 
-        if( 0 != result )
-        {
-            snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
-                    ": pthread_create() error =%d %s",
-                    result,strerror(result));
-
-            TRACE_ERR(msgbuffer);
-        }
+        TRACE_ERR(msgbuffer);
     }
 
     return result;
