@@ -178,21 +178,21 @@ static int libmsg_cbfcnt_getdate(void *a_pContext)
     sRequest_t *  pRequest   =     &( (sDataThreadCtx_t*) a_pContext)->dataService.request;
     sResponse_t * pResponse  =     &( (sDataThreadCtx_t*) a_pContext)->dataService.response;
 
-//    sGetdateResponse_t  *pData      = (sGetdateResponse_t *)&pResponse->data;
-//
-//    pResponse->header.datasize =
-//            sizeof(sHeader_t) + sizeof(sGetdateResponse_t);
-//
-//    result = clock_gettime(CLOCK_MONOTONIC_RAW,
-//            &pData->timespesc);
-//
-//    snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
-//            " : date=%ld.%09ld result=%d\n",
-//            pData->timespesc.tv_sec,
-//            pData->timespesc.tv_nsec,
-//            result);
-//
-//    pResponse->header.result = result;
+    sGetdateResponse_t  *pData      = (sGetdateResponse_t *)&pResponse->data;
+
+    pResponse->header.datasize =
+            sizeof(sHeader_t) + sizeof(sGetdateResponse_t);
+
+    result = clock_gettime(CLOCK_MONOTONIC_RAW,
+            &pData->timespesc);
+
+    snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
+            " : date=%ld.%09ld result=%d\n",
+            pData->timespesc.tv_sec,
+            pData->timespesc.tv_nsec,
+            result);
+
+    pResponse->header.result = result;
 
     TRACE_LOG(msgbuffer);
 

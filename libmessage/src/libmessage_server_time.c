@@ -24,6 +24,7 @@
 #include <sys/types.h>
 #include <limits.h>
 
+#include "apisyslog.h"
 #include "utils.h"
 
 
@@ -56,6 +57,8 @@ int libmsg_srvtime_getdate( _IN_ const char* a_UniqID, _OUT_ double *a_Date)
     char    vBufferOUT[HARD_MAX]    = {0};
     uint32_t SizeBuffOut            = sizeof(vBufferOUT);
     char    vClientName[NAME_MAX]   = {0};
+    sGetdateResponse_t  *pResponse  = 0;
+    char msgbuffer[APISYSLOG_MSG_SIZE] = {0};
 
     result = getMqClientname(a_UniqID,SVC_GETDATE,vClientName);
 
@@ -69,7 +72,19 @@ int libmsg_srvtime_getdate( _IN_ const char* a_UniqID, _OUT_ double *a_Date)
 
     if( 0 == result )
     {
-        *a_Date = *((double*)vBufferOUT);
+        pResponse  = (sGetdateResponse_t*)((sResponse_t*) vBufferOUT)->data;
+
+        *a_Date = getDateDouble(pResponse->timespesc);
+
+        snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
+                " : date=%ld.%09ld *date=%.9f result=%d\n",
+                pResponse->timespesc.tv_sec,
+                pResponse->timespesc.tv_nsec,
+                *a_Date,
+                result);
+        TRACE_LOG(msgbuffer);
+
+
     }
 
     return result;

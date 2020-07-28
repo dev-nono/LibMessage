@@ -27,6 +27,8 @@
 #define SERVER_TIME_SETDATE     SERVER_TIME".setdate"
 #define SERVER_TIME_SIGNAL      SERVER_TIME".signal"
 
+#define DATA_MAX_REQUEST    (HARD_MAX - NAME_MAX - sizeof(sHeader_t))
+#define DATA_MAX_RESPONSE    (HARD_MAX - sizeof(sHeader_t))
 
 
 //*****************************************************
@@ -44,9 +46,9 @@ struct sRequest
 {
     sHeader_t   header;
 
-    char filenameClient[PATH_MAX];
+    char filenameClient[NAME_MAX];
 //    char data __flexarr;    /* Name.  */
-    char        data[PIPE_BUF] ;// __flexarr;    /* Name.  */
+    char        data[DATA_MAX_REQUEST] ;// __flexarr;    /* Name.  */
 
 };
 typedef struct sRequest sRequest_t;
@@ -56,7 +58,7 @@ struct sResponse
 //*****************************************************
 {
     sHeader_t   header;
-    char        data[PIPE_BUF] ;// __flexarr;    /* Name.  */
+    char        data[DATA_MAX_RESPONSE] ;// __flexarr;    /* Name.  */
 
 };
 typedef struct sResponse sResponse_t;

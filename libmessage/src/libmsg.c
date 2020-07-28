@@ -256,19 +256,22 @@ TRACE_DBG1("_1_")
             if( 0 == result )
             {
                 TRACE_DBG1("_7_ result=0x%X",result);
-               memset(vBufferIN,0,sizeof(vBufferIN));
 
-    //            fprintf(stderr,"_9_ \n");
+                result = pContex->dataService.pFunctCB(pContex);
 
-                double dblValue = getDateRawDouble();
-                memcpy(vBufferIN,&dblValue,sizeof(dblValue));
+
+                memset(vBufferIN,0,sizeof(vBufferIN));
+
+
                 // send msg to server
                 errno = 0;
-                result = mq_send(fd_client.fd, vBufferIN,
-                        sizeof(dblValue),0);
+                result = mq_send(fd_client.fd, (char*)&pContex->dataService.response,
+                        pContex->dataService.response.header.datasize,0);
 
-                TRACE_DBG2("_8_ %s=%f result=%d errno=%d %s\n",
-                        vBufferOUT,dblValue,result,errno,strerror(errno));
+                TRACE_DBG2("_8_mq_send()=%d size=%d errno=%u %s\n",
+                        result,
+                        pContex->dataService.response.header.datasize,
+                        errno,strerror(errno));
 
                 if ( 0 != result)
                 {
@@ -279,7 +282,7 @@ TRACE_DBG1("_1_")
                     TRACE_ERR(msgbuffer);
                 }
             }
-    //        fprintf(stderr,"_11_ \n");
+            //        fprintf(stderr,"_11_ \n");
 
             mq_close(fd_client.fd);
 

@@ -140,7 +140,7 @@ int check_loop(const char* a_UniqID)
     do{
         result =  libmsg_srvtime_getdate(a_UniqID, &vDate);
 
-        fprintf(stdout,"date= %f result=%d \n",vDate,result);
+        fprintf(stdout,"date= %.9f result=%d \n",vDate,result);
         sleep(1);
 
     }while(1);
@@ -149,7 +149,7 @@ int check_loop(const char* a_UniqID)
 int main(int argc, char* argv[])
 {
     int     result = 0;
-    double  vDate = 0.0;
+
 
     apisyslog_init("");
 
