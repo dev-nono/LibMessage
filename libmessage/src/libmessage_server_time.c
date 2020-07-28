@@ -57,15 +57,13 @@ int libmsg_srvtime_getdate( _IN_ const char* a_UniqID, _OUT_ double *a_Date)
     uint32_t SizeBuffOut            = sizeof(vBufferOUT);
     char    vClientName[NAME_MAX]   = {0};
 
-
-    result = getMQname(a_UniqID,SVC_GETDATE,vClientName);
-
+    result = getMqClientname(a_UniqID,SVC_GETDATE,vClientName);
 
     strncpy(vBufferIN,vClientName,HARD_MAX);
-    SizeBuffIn = strlen(vBufferIN);
+    SizeBuffIn = strlen(vBufferIN)+1;
 
-
-    result = libmsg_cli_getdata( vClientName,SERVER_TIME_GETDATE,
+    result = libmsg_cli_getdata( SERVER_TIME_GETDATE,
+            vClientName,
             SizeBuffIn, vBufferIN,
             SizeBuffOut,vBufferOUT);
 
@@ -75,7 +73,6 @@ int libmsg_srvtime_getdate( _IN_ const char* a_UniqID, _OUT_ double *a_Date)
     }
 
     return result;
-
 }
 
 //************************************************************
@@ -98,10 +95,11 @@ int libmsg_srvtime_register_getdate(libmsg_pFunctCB_t a_pFunctCB)
            sizeof(g_TheadCtx_getdate.dataService.filenameServer)-1);
 
 
-//   strncpy(g_TheadCtx_getdate.dataService.filenameSemaphore,
-//           getNameService(eLIBMSG_ID_GETDATA,eLIBMSG_COL_SEM),NAME_MAX-1);
 
-    result = libmsg_server_register_svc(&g_TheadCtx_getdate);
+   strncpy(g_TheadCtx_getdate.dataService.filenameSemaphore,
+           SERVER_TIME_GETDATE,strlen(SERVER_TIME_GETDATE)+1);
+
+    result = libmsg_srv_register_svc(&g_TheadCtx_getdate);
 
     return result;
 }

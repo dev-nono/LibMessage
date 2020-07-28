@@ -13,4 +13,9 @@
 
 int libmsg_srvtime_getdate(const char* a_UniqID,double *a_pDate);
 
+int libmsg_srvtime_register_getdate(libmsg_pFunctCB_t a_pFunctCB);
+int libmsg_srvtime_wait();
+
+
+
 #endif /* INC_LIBMSG_SRVTIME_H_ */

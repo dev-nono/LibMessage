@@ -16,14 +16,14 @@
 #include <string.h>
 #include <limits.h>
 
+
 #include <fcntl.h>           /* Pour les constantes O_* */
 #include <sys/stat.h>        /* Pour les constantes des modes */
 #include <mqueue.h>
 
-// include ==>  libmessage.h
+#include "apisyslog.h"
 #include "utils.h"
-//#include "libmessage.h"
-//#include "libmessage_int.h"
+
 #include "libmsg_srvtime.h"
 
 
@@ -31,7 +31,7 @@
 
 int test_msgQueue(char *a_ID)
 {
-#define SERVER_TIME "toto"
+//#define SERVER_TIME "toto"
 
     int result = 0;
     int vLenReceive = 0;
@@ -72,7 +72,7 @@ int test_msgQueue(char *a_ID)
         //**********************************************************
         // open mq client
         //**********************************************************
-        getMQname(a_ID,"getdate",vClientfilename);
+        getMqClientname(a_ID,"getdate",vClientfilename);
 
         fprintf(stderr,"_3_ name=%s \n",vClientfilename);
 
@@ -130,7 +130,20 @@ int test_msgQueue(char *a_ID)
 
     }
 
+    return result;
+}
+int check_loop(const char* a_UniqID)
+{
+    int     result = 0;
+    double  vDate = 0.0;
 
+    do{
+        result =  libmsg_srvtime_getdate(a_UniqID, &vDate);
+
+        fprintf(stdout,"date= %f result=%d \n",vDate,result);
+        sleep(1);
+
+    }while(1);
 }
 
 int main(int argc, char* argv[])
@@ -138,13 +151,16 @@ int main(int argc, char* argv[])
     int     result = 0;
     double  vDate = 0.0;
 
+    apisyslog_init("");
+
+    TRACE_DBG1("main_")
 
 //    result = libmessage_getdate("cli_message",SERVER_TIME_ID_GETDATE,&vDate);
 //    printf("\ncli_message : result = %d date = %f \n",result,vDate);
 
     if(argc > 1 )
     {
-        result =  libmsg_srvtime_getdate(argv[1], &vDate);
+        result =  check_loop(argv[1]);
     }
     else
     {
@@ -152,4 +168,4 @@ int main(int argc, char* argv[])
     }
 
     return EXIT_SUCCESS;
-}
+}// int main(int argc, char* argv[])

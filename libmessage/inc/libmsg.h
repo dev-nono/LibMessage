@@ -102,8 +102,9 @@ int     libmsg_cli_getdata(
 
 
 
+int libmsg_srv_register_svc(sDataThreadCtx_t *a_pDataThreadCtx);
 
-static void * libmsg_server_threadFunction(void * a_pArg);
+
 
 
 

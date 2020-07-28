@@ -41,15 +41,15 @@
             			
             <storageModule moduleId="cdtBuildSystem" version="4.0.0">
                 				
-                <configuration artifactExtension="so" artifactName="message" buildArtefactType="org.eclipse.cdt.build.core.buildArtefactType.sharedLib" buildProperties="org.eclipse.cdt.build.core.buildArtefactType=org.eclipse.cdt.build.core.buildArtefactType.sharedLib,org.eclipse.cdt.build.core.buildType=org.eclipse.cdt.build.core.buildType.debug" cleanCommand="rm -rf" description="" id="cdt.managedbuild.config.gnu.so.debug.1173545111" name="Debug" optionalBuildProperties="org.eclipse.cdt.docker.launcher.containerbuild.property.selectedvolumes=,org.eclipse.cdt.docker.launcher.containerbuild.property.volumes=" parent="cdt.managedbuild.config.gnu.so.debug">
+                <configuration artifactExtension="so" artifactName="message" buildArtefactType="org.eclipse.cdt.build.core.buildArtefactType.sharedLib" buildProperties="org.eclipse.cdt.build.core.buildArtefactType=org.eclipse.cdt.build.core.buildArtefactType.sharedLib,org.eclipse.cdt.build.core.buildType=org.eclipse.cdt.build.core.buildType.debug" cleanCommand="rm -rf" description="" id="cdt.managedbuild.config.gnu.so.debug.1173545111" name="Debug" optionalBuildProperties="org.eclipse.cdt.docker.launcher.containerbuild.property.selectedvolumes=,org.eclipse.cdt.docker.launcher.containerbuild.property.volumes=" parent="cdt.managedbuild.config.gnu.so.debug" prebuildStep="make clean">
                     					
                     <folderInfo id="cdt.managedbuild.config.gnu.so.debug.1173545111." name="/" resourcePath="">
                         						
-                        <toolChain id="cdt.managedbuild.toolchain.gnu.so.debug.613006926" name="Linux GCC" superClass="cdt.managedbuild.toolchain.gnu.so.debug">
+                        <toolChain id="cdt.managedbuild.toolchain.gnu.so.debug.613006926" name="Linux GCC" nonInternalBuilderId="cdt.managedbuild.target.gnu.builder.so.debug" superClass="cdt.managedbuild.toolchain.gnu.so.debug">
                             							
                             <targetPlatform id="cdt.managedbuild.target.gnu.platform.so.debug.1360859136" name="Debug Platform" superClass="cdt.managedbuild.target.gnu.platform.so.debug"/>
                             							
-                            <builder buildPath="${workspace_loc:/libmessage}/Debug" id="cdt.managedbuild.target.gnu.builder.so.debug.277242777" keepEnvironmentInBuildfile="false" managedBuildOn="true" name="Gnu Make Builder" superClass="cdt.managedbuild.target.gnu.builder.so.debug"/>
+                            <builder buildPath="${workspace_loc:/libmessage}/Debug" enabledIncrementalBuild="true" id="cdt.managedbuild.target.gnu.builder.so.debug.922049854" keepEnvironmentInBuildfile="false" name="Gnu Make Builder" parallelBuildOn="true" parallelizationNumber="optimal" superClass="cdt.managedbuild.target.gnu.builder.so.debug"/>
                             							
                             <tool id="cdt.managedbuild.tool.gnu.archiver.base.567943397" name="GCC Archiver" superClass="cdt.managedbuild.tool.gnu.archiver.base"/>
                             							
@@ -91,17 +91,19 @@
                             							
                             <tool id="cdt.managedbuild.tool.gnu.c.linker.so.debug.1431379710" name="GCC C Linker" superClass="cdt.managedbuild.tool.gnu.c.linker.so.debug">
                                 								
-                                <option defaultValue="true" id="gnu.c.link.so.debug.option.shared.286846128" name="Shared (-shared)" superClass="gnu.c.link.so.debug.option.shared" valueType="boolean"/>
+                                <option defaultValue="true" id="gnu.c.link.so.debug.option.shared.286846128" name="Shared (-shared)" superClass="gnu.c.link.so.debug.option.shared" useByScannerDiscovery="false" valueType="boolean"/>
                                 								
                                 <option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="gnu.c.link.option.libs.588991350" name="Libraries (-l)" superClass="gnu.c.link.option.libs" useByScannerDiscovery="false" valueType="libs">
                                     									
                                     <listOptionValue builtIn="false" value="rt"/>
                                     									
+                                    <listOptionValue builtIn="false" value="pthread"/>
+                                    									
                                     <listOptionValue builtIn="false" value="apisyslog"/>
                                     								
                                 </option>
                                 								
-                                <option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="gnu.c.link.option.paths.1781780921" superClass="gnu.c.link.option.paths" useByScannerDiscovery="false" valueType="libPaths">
+                                <option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="gnu.c.link.option.paths.1781780921" name="Library search path (-L)" superClass="gnu.c.link.option.paths" useByScannerDiscovery="false" valueType="libPaths">
                                     									
                                     <listOptionValue builtIn="false" value="&quot;${workspace_loc:/apisyslog/Debug}&quot;"/>
                                     								

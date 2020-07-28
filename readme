@@ -1,0 +1,104 @@
+
+
+client      client_1.pid   toto_1.123456
+
+client      client_1.svc_1.pid   
+
+server      srvtime_getdate
+
+/tmp/basename.TID
+
+client1.srv1_signal_1
+
+
+
+*********************************************************
+        CLIENT
+*********************************************************
+ - one thread signal for incomming event registred
+        - poll on array of signal regitered
+ - dispatch event on regitered signal 
+
+
+*********************************************************
+            SERVER
+*********************************************************
+ - register client in list of signal
+ - each service signal: 
+    - create thread  metier
+    - maintain liste of client to notify
+
+*********************************************************
+            libmessage_srvtime_initialize()
+*********************************************************
+ create thread for incomming event signal 
+
+
+
+*********************************************************
+        libmessage_srvtime_register_signaldate
+*********************************************************
+
+ libmessage_server_register_signal()
+ 
+ 
+ 
+*********************************************************
+             libmessage_server_threadFunction
+ *********************************************************
+
+    libmessage_mkfifo()
+
+    result = sem_wait(pContext->dataService.pSemsvc);
+
+ ==> do
+ 
+    fdServer = open(pContext->dataService.filenameServer,O_NONBLOCK|O_CLOEXEC|O_RDONLY);
+    result = sem_post(pContext->dataService.pSemsvc);
+
+    poll(&vPollfd, vNfds, vTimeout);
+
+    read client request
+    
+    open client endpoint
+    
+    call callback
+            
+    
+     write response TO CLIENT
+            
+            
+            
+ <==  while
+ 
+  *********************************************************
+        server regsiter signal
+ *********************************************************
+    - add element client to list of client to notify
+    libmessage_server_register_fifosignal()
+
+
+ 
+ *********************************************************
+        libmessage_client_threadFunction_signal
+ *********************************************************
+
+    wait start
+    do
+        poll on regitered signal
+        
+        if SIGUSR1 
+            continue
+        else         
+            check event and read data
+        
+        call callback
+        
+    while
+        
+
+
+ 
+ 
+ 
+ 

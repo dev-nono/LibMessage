@@ -17,12 +17,13 @@
 #include <time.h>
 #include <poll.h>
 #include <errno.h>
+#include <unistd.h>
 
 #include "apisyslog.h"
 #include "utils.h"
 
 
-#include "libmsg.h"
+#include "libmsg_srvtime.h"
 //#include "libmessage_int.h"
 //#include "libmessage.h"
 
@@ -217,7 +218,10 @@ int main(void)
 {
     int result = 0;
 
-    test_msgQueue();
+    apisyslog_init("");
+    sleep(1);
+
+//    test_msgQueue();
 
     //    result =  libmessage_register_service(
     //            LIBMESSAGE_SRVID_TIME,
