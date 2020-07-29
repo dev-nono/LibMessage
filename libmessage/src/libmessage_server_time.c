@@ -60,8 +60,11 @@ int libmsg_srvtime_getdate( _IN_ const char* a_UniqID, _OUT_ double *a_Date)
 
     result = getMqClientname(a_UniqID,SVC_GETDATE,request.filenameClient);
 
-    result = libmsg_cli_getdata( SERVER_TIME_GETDATE,
-            &request,&response);
+    if( 0 == result )
+    {
+        result = libmsg_cli_getdata( SERVER_TIME_GETDATE,
+                &request,&response);
+    }
 
     if( 0 == result )
     {
@@ -96,8 +99,6 @@ int libmsg_srvtime_register_getdate(libmsg_pFunctCB_t a_pFunctCB)
     strncpy(g_TheadCtx_getdate.dataService.filenameServer,
             SERVER_TIME_GETDATE,
             sizeof(g_TheadCtx_getdate.dataService.filenameServer)-1);
-
-
 
     strncpy(g_TheadCtx_getdate.dataService.filenameSemaphore,
             SERVER_TIME_GETDATE,strlen(SERVER_TIME_GETDATE)+1);

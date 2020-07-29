@@ -181,7 +181,7 @@ static int libmsg_cbfcnt_getdate(
     int result = 0;
     char msgbuffer[APISYSLOG_MSG_SIZE] = {0};
 
-    (void)a_pRequest;
+    (void)a_pRequest; // no input data to use
 
     sGetdateResponse_t  *pData      = (sGetdateResponse_t *)&a_pResponse->data;
 

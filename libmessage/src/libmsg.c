@@ -41,6 +41,11 @@ int libmsg_cli_getdata(
     struct pollfd fd_client = {0};
     struct pollfd fd_server = {0};
 
+    struct timespec ts_abs_timeout = {0};
+    struct timespec ts_timeout = {0,1e9 / 1000 * 10}; // 10ms
+
+    char        msgbuffer[APISYSLOG_MSG_SIZE]   = {0};
+
     vAttr.mq_flags  = O_CLOEXEC;
     vAttr.mq_curmsgs = 1;
     vAttr.mq_maxmsg = 1;
@@ -84,14 +89,18 @@ int libmsg_cli_getdata(
 
     if( 0 == result )
     {
-
+        timeradd_real(ts_timeout,&ts_abs_timeout);
         // send msg to server
-        result = mq_send(fd_server.fd, (char*)a_pRequest,
-                sizeof(sRequest_t),0);
+//        result = mq_send(fd_server.fd, (char*)a_pRequest,sizeof(sRequest_t),0);
+        result = mq_timedsend(fd_server.fd,
+                (char*)a_pRequest,
+                sizeof(sRequest_t),
+                0,
+                &ts_abs_timeout);
 
         if( 0 != result)
         {
-            fprintf(stderr,"mq_send(%d) result=%d errno=%d %s \n",
+            TRACE_ERR("mq_send(%d) result=%d errno=%d %s \n",
                     fd_server.fd,result , errno,strerror(errno));
         }
     }
@@ -100,11 +109,44 @@ int libmsg_cli_getdata(
     {
         memset(a_pResponse,0,sizeof(sResponse_t));
 
-        //receive msg in client
-        vLenReceive =  mq_receive(fd_client.fd,
+        ts_timeout.tv_sec = 0;
+        ts_timeout.tv_nsec = 1e9 / 1000 * 20 ;// 20ms
+
+        timeradd_real(ts_timeout,&ts_abs_timeout);
+
+        errno=0;
+        vLenReceive =  mq_timedreceive(fd_client.fd,
                 (char*)a_pResponse,
                 sizeof(sResponse_t),
-                0U);
+                0U,
+                &ts_abs_timeout);
+
+        if( -1 == vLenReceive )
+        {
+            TRACE_ERR("mq_timedreceive(%d) vLenReceive=%d result=%d errno=%d %s \n",
+                    fd_server.fd,vLenReceive,
+                    result , errno,strerror(errno));
+
+            result = errno;
+        }
+        else if( 0 == vLenReceive )
+        {
+            TRACE_ERR("mq_timedreceive(%d) vLenReceive=%d result=%d errno=%d %s \n",
+                    fd_server.fd,result ,
+                    vLenReceive,errno,strerror(errno));
+
+            result = errno;
+        }
+        else
+        {
+            TRACE_DBG2("mq_timedreceive(%d) vLenReceive=%d result=%d errno=%d %s \n",
+                    fd_server.fd,vLenReceive,
+                    result , errno,strerror(errno));
+
+            result = errno;
+            result = 0;
+
+        }
     }
 
     mq_close(fd_client.fd);

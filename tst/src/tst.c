@@ -13,14 +13,41 @@
 #include <mqueue.h>
 #include <string.h>
 #include <errno.h>
-
+#include <time.h>
+#include <sys/time.h>
 
 #include <stdio.h>
 #include <stdlib.h>
 
 #define MQ_FILENAME "/server_time"
 
-int main(void) {
+#include "utils.h"
+
+ int   tst_clock()
+ {
+     int result = 0;
+
+     struct timeval  time_v = {0,1e6 / 1000 * 10};
+     struct timeval  time_v_result = {0};
+
+     struct timespec ts_timeout = {0,1e9 / 1000 *10 };
+     struct timespec ts_result = {0};
+
+    // timeradd_gtofd(time_v,&time_v_result);
+
+
+         struct timespec ts_curtime = {0,0};
+
+         result = clock_gettime(CLOCK_REALTIME, &ts_curtime);
+
+         timeradd_ts(ts_curtime,ts_timeout,&ts_result);
+
+     return result;
+ }
+
+
+int tst_mq_open()
+{
 
     int result = 0;
     struct mq_attr  vAttr   = {0};
@@ -40,4 +67,13 @@ int main(void) {
 
 
     return EXIT_SUCCESS;
+}
+
+int main(int argc , char *argv[] )
+{
+
+    //tst_mq_open();
+
+    tst_clock();
+
 }
