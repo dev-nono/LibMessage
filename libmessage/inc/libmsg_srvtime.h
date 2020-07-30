@@ -56,18 +56,37 @@ typedef struct sSignaldateRequest  sSignaldateRequest_t;
 struct sSignaldateResponse
 //*****************************************************
 {
-    struct timespec     timespesc;
+    //struct timespec     timespesc;
 };
 typedef struct sSignaldateResponse  sSignaldateResponse_t;
 
+//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+//                  SERVER
+//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+int libmsg_srvtime_srv_wait();
 
 
 
-int libmsg_srvtime_getdate(const char* a_UniqID,double *a_pDate);
+//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+//                  CLIENT
+//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+int libmsg_srvtime_cli_wait();
 
-int libmsg_srvtime_register_getdate(libmsg_pFunctCB_t a_pFunctCB);
-int libmsg_srvtime_wait();
+//****************************************************
+//          svc getdate
+//****************************************************
+int libmsg_srvtime_cli_getdate(const char* a_UniqID,double *a_pDate);
 
+int libmsg_srvtime_srv_register_getdate(libmsg_pFunctCB_t a_pFunctCB);
+
+//****************************************************
+//          svc signaldate
+//****************************************************
+int libmsg_srvtime_cli_signaldate(  const char* a_UniqID,
+                                    const double a_Date,
+                                    libmsg_pFunctCB_t a_pFunctCB);
+
+int libmsg_srvtime_srv_register_signal(libmsg_pFunctCB_t a_pFunctCB);
 
 
 #endif /* INC_LIBMSG_SRVTIME_H_ */

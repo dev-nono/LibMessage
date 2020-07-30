@@ -15,6 +15,8 @@
 #include <errno.h>
 #include <time.h>
 #include <sys/time.h>
+#include <math.h>
+#include <stdint.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -45,6 +47,132 @@
      return result;
  }
 
+int  tst_ts_split_double()
+{
+    int     result  = 0;
+    double  date    = 123456789.123456789;
+    struct timespec  ts ,ts1,ts2, ts3, ts4,ts5 = {0};
+    double d1,d2 = 0.0;
+
+    unsigned int udate = (unsigned int)date;
+    double      fdate = (double)udate;
+
+    uint64_t    u_sec = 0;
+    uint64_t    u_nsec =0;
+    uint64_t    u_diff =0;
+
+
+    date    = 12345678.123456789;
+
+    u_sec = (uint64_t)date * 1e9;
+    u_nsec = date * 1e9;
+    u_diff = u_nsec - u_sec ;
+
+    ts.tv_sec = udate;
+    ts.tv_nsec = (date - fdate)  * 1e9;
+
+
+    date    = 12345678.123456789;
+    udate = (unsigned int)date;
+    fdate = (double)udate;
+    ts1.tv_sec = udate;
+    ts1.tv_nsec = (date - fdate)  * 1e9;
+
+
+    date    = 1234567.123456789;
+    udate = (unsigned int)date;
+    fdate = (double)udate;
+    ts2.tv_sec = udate;
+    ts2.tv_nsec = (date - fdate)  * 1e9;
+
+    date    = 123456.123456789;
+    udate = (unsigned int)date;
+    fdate = (double)udate;
+    ts3.tv_sec = udate;
+    ts3.tv_nsec = (date - fdate)  * 1e9;
+
+    date    = 12345.123456789;
+    udate = (unsigned int)date;
+    fdate = (double)udate;
+    ts4.tv_sec = udate;
+    ts4.tv_nsec = (date - fdate)  * 1e9;
+
+    date    = 1234.123456789;
+    udate = (unsigned int)date;
+    fdate = (double)udate;
+    ts5.tv_sec = udate;
+    ts5.tv_nsec = (date - fdate)  * 1e9;
+
+
+    date = 123456789.112233445;
+    u_sec = (uint64_t)date * 1e9;
+    u_nsec = date * 1e9;
+    u_diff = u_nsec - u_sec ;
+
+    date = 12345678.112233445;
+    u_sec = (uint64_t)date * 1e9;
+    u_nsec = date * 1e9;
+    u_diff = u_nsec - u_sec ;
+
+    date = 1234567.112233445;
+    u_sec = (uint64_t)date * 1e9;
+    u_nsec = date * 1e9;
+    u_diff = u_nsec - u_sec ;
+
+    date = 123456.112233445;
+    u_sec = (uint64_t)date * 1e9;
+    u_nsec = date * 1e9;
+    u_diff = u_nsec - u_sec ;
+
+    date = 12345.112233445;
+    u_sec = (uint64_t)date * 1e9;
+    u_nsec = date * 1e9;
+
+    date = 1234.112233445;
+    u_sec = (uint64_t)date * 1e9;
+    u_nsec = date * 1e9;
+    u_diff = u_nsec - u_sec ;
+
+
+
+    date    = 123456789.112233445;
+    d1 = 0.0;
+    d2 = modf(date,&d1);
+
+    date    = 12345678.123456789;
+    d1 = 0.0;
+    d2 = modf(date,&d1);
+
+    date    = 1234567.123456789;
+    d1 = 0.0;
+    d2 = modf(date,&d1);
+
+    date    = 123456.123456789;
+    d1 = 0.0;
+    d2 = modf(date,&d1);
+
+    date    = 12345.123456789;
+    d1 = 0.0;
+    d2 = modf(date,&d1);
+
+    date    = 1234.123456789;
+    d1 = 0.0;
+    d2 = modf(date,&d1);
+
+    date    = 9999.123456789;
+    d1 = 0.0;
+    d2 = modf(date,&d1);
+
+
+    //d3 =
+//    d2 = remainder(date,1);
+//
+//
+//    d1 = fmod(date,(double)ts.tv_sec);
+//    d2 = remainder(date,(double)ts.tv_sec);
+
+    return result;
+}
 
 int tst_mq_open()
 {
@@ -74,6 +202,8 @@ int main(int argc , char *argv[] )
 
     //tst_mq_open();
 
-    tst_clock();
+    // tst_clock();
+
+    tst_ts_split_double();
 
 }

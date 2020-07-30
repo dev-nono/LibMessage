@@ -30,9 +30,9 @@
 
 int libmsg_cli_getdata(
         _IN_ const  char        *a_Srvname,
-            const   sRequest_t  *a_pRequest,
-                    sResponse_t *a_pResponse
-        )
+//            const   sRequest_t  *a_pRequest,
+//                    sResponse_t *a_pResponse
+        sDataService_t      *a_pDataService)
 {
     int result = 0;
     int vLenReceive = 0;
@@ -45,6 +45,10 @@ int libmsg_cli_getdata(
     struct timespec ts_timeout = {0,1e9 / 1000 * 10}; // 10ms
 
     char        msgbuffer[APISYSLOG_MSG_SIZE]   = {0};
+
+//    sRequest_t  *a_pDataService->request = &a_pDataService->request;
+    //sResponse_t *a_pDataService->response = a_pDataService->response;
+
 
     vAttr.mq_flags  = O_CLOEXEC;
     vAttr.mq_curmsgs = 1;
@@ -69,15 +73,15 @@ int libmsg_cli_getdata(
         //**********************************************************
         // open mq client
         //**********************************************************
-        mq_unlink(a_pRequest->filenameClient);
+        mq_unlink(a_pDataService->request.filenameClient);
 
         errno = 0;
-        fd_client.fd = mq_open(a_pRequest->filenameClient,
+        fd_client.fd = mq_open(a_pDataService->request.filenameClient,
                 O_CREAT | O_RDONLY , S_IRWXO | S_IRWXG | S_IRWXU ,&vAttr);
         if( -1 == fd_client.fd )
         {
             fprintf(stderr,"mq_open(%s) result=%d errno=%d %s \n",
-                    a_pRequest->filenameClient,
+                    a_pDataService->request.filenameClient,
                     result , errno,strerror(errno));
         }
     }
@@ -91,9 +95,9 @@ int libmsg_cli_getdata(
     {
         timeradd_real(ts_timeout,&ts_abs_timeout);
         // send msg to server
-//        result = mq_send(fd_server.fd, (char*)a_pRequest,sizeof(sRequest_t),0);
+//        result = mq_send(fd_server.fd, (char*)a_pDataService->request,sizeof(sRequest_t),0);
         result = mq_timedsend(fd_server.fd,
-                (char*)a_pRequest,
+                (char*)&a_pDataService->request,
                 sizeof(sRequest_t),
                 0,
                 &ts_abs_timeout);
@@ -107,7 +111,7 @@ int libmsg_cli_getdata(
 
     if( 0 == result )
     {
-        memset(a_pResponse,0,sizeof(sResponse_t));
+        memset(&a_pDataService->response,0,sizeof(sResponse_t));
 
         ts_timeout.tv_sec = 0;
         ts_timeout.tv_nsec = 1e9 / 1000 * 20 ;// 20ms
@@ -116,7 +120,7 @@ int libmsg_cli_getdata(
 
         errno=0;
         vLenReceive =  mq_timedreceive(fd_client.fd,
-                (char*)a_pResponse,
+                (char*)&a_pDataService->response,
                 sizeof(sResponse_t),
                 0U,
                 &ts_abs_timeout);

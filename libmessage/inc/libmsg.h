@@ -17,15 +17,22 @@
 
 #define MAX_POLL_FD (100U)
 
-#define SVC_GETDATE     "getdate"
 
+// client_1: cli.1.getdate
+// server  : srvtime.getdate
+//
+// client_1: cli.1.signal1
+// server  : srvtime.signal
+
+#define SVC_GETDATE         "getdate"
+#define SVC_SIGNALDATE      "signaldate"
 //******************************************************
 //  services "server_time"
 //******************************************************
 #define SERVER_TIME             "/srvtime"
 #define SERVER_TIME_GETDATE     SERVER_TIME"."SVC_GETDATE
 #define SERVER_TIME_SETDATE     SERVER_TIME".setdate"
-#define SERVER_TIME_SIGNAL      SERVER_TIME".signal"
+#define SERVER_TIME_SIGNALDATE  SERVER_TIME".signal"
 
 #define DATA_MAX_REQUEST    (HARD_MAX - NAME_MAX - sizeof(sHeader_t))
 #define DATA_MAX_RESPONSE    (HARD_MAX - sizeof(sHeader_t))
@@ -63,20 +70,20 @@ struct sResponse
 };
 typedef struct sResponse sResponse_t;
 
-typedef int (*libmsg_pFunctCB_t)(sRequest_t  *a_pRequest,sResponse_t *a_pResponse);
+typedef int (*libmsg_pFunctCB_t)(const sRequest_t  *a_pRequest,sResponse_t *a_pResponse);
 
 //*****************************************************
 struct sDataService
 //*****************************************************
 {
     char                    filenameServer[NAME_MAX];
-    char                    filenameSemaphore[NAME_MAX];
+    //char                    filenameSemaphore[NAME_MAX];
 
     libmsg_pFunctCB_t   pFunctCB;
     int                     id;
 
-//    sRequest_t     request;
-//    sResponse_t    response;
+    sRequest_t     request;
+    sResponse_t    response;
 
 
 };
@@ -96,16 +103,16 @@ struct sDataThreadCtx
 
 };
 typedef struct sDataThreadCtx sDataThreadCtx_t;
+
+
 int     libmsg_cli_getdata(
         _IN_ const char     *a_Srvname,
-        const sRequest_t    *a_pRequest,
-        sResponse_t         *a_pResponse);
-
-
-
-
+        sDataService_t      *a_pDataService);
+//        const sRequest_t    *a_pRequest,
+//        sResponse_t         *a_pResponse);
 
 int libmsg_srv_register_svc(sDataThreadCtx_t *a_pDataThreadCtx);
+int libmsg_srv_register_signal(sDataThreadCtx_t *a_pDataThreadCtx);
 
 
 

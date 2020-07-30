@@ -139,9 +139,15 @@
                     					
                     <fileInfo id="cdt.managedbuild.config.gnu.so.debug.1173545111.926647414" name="diagram_de_sequence.txt" rcbsApplicability="disable" resourcePath="diagram_de_sequence.txt" toolsToInvoke=""/>
                     					
+                    <fileInfo id="cdt.managedbuild.config.gnu.so.debug.1173545111.1732679425" name="libmessage_int.h" rcbsApplicability="disable" resourcePath="inc/libmessage_int.h" toolsToInvoke=""/>
+                    					
+                    <fileInfo id="cdt.managedbuild.config.gnu.so.debug.1173545111.556709766" name="libmsg_int.h" rcbsApplicability="disable" resourcePath="inc/libmsg_int.h" toolsToInvoke=""/>
+                    					
+                    <fileInfo id="cdt.managedbuild.config.gnu.so.debug.1173545111.43286054" name="libmessage.h" rcbsApplicability="disable" resourcePath="inc/libmessage.h" toolsToInvoke=""/>
+                    					
                     <sourceEntries>
                         						
-                        <entry excluding="src/libmessage.c|src/temp|diagram_de_sequence.txt" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
+                        <entry excluding="inc/libmessage.h|inc/libmsg_int.h|inc/libmessage_int.h|src/libmessage.c|src/temp|diagram_de_sequence.txt" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
                         					
                     </sourceEntries>
                     				

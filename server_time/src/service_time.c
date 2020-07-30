@@ -24,8 +24,6 @@
 
 
 #include "libmsg_srvtime.h"
-//#include "libmessage_int.h"
-//#include "libmessage.h"
 
 int test_msgQueue()
 {
@@ -173,8 +171,7 @@ int test_msgQueue()
     }while(1);
 }
 static int libmsg_cbfcnt_getdate(
-        //void *a_pContext)
-        sRequest_t  *a_pRequest,
+        const sRequest_t  *a_pRequest,
         sResponse_t *a_pResponse)
 
 {
@@ -209,13 +206,30 @@ static int libmsg_cbfcnt_getdate(
 //
 //    return result;
 //}
-//static int libmessage_cbfcnt_signal(void* a_pData)
-//{
-//    int result = 0;
-//
-//    return result;
-//}
+static int libmsg_cbfcnt_signaldate(
+        const sRequest_t  *a_pRequest,
+        sResponse_t *a_pResponse)
 
+{
+    int result = 0;
+    char msgbuffer[APISYSLOG_MSG_SIZE] = {0};
+
+    sSignaldateRequest_t *pSignalRequest  = (sSignaldateRequest_t*)&a_pRequest->data;
+
+    a_pResponse->header.datasize = sizeof(sHeader_t);
+    a_pResponse->header.result = result;
+
+    snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
+            " : timeout=%ld.%09ld result=%d",
+            pSignalRequest-> timespesc.tv_sec,
+            pSignalRequest->timespesc.tv_nsec,
+            result);
+
+
+    TRACE_LOG(msgbuffer);
+
+    return result;
+}
 //*********************************************************
 //*
 //*********************************************************
@@ -236,8 +250,9 @@ int main(void)
     //    result = libmessage_register_service_time( SERVER_TIME_SETDATE, libmessage_cbfcnt_setdate);
     //    result = libmessage_register_service_time( SERVER_TIME_SIGNAL,  libmessage_cbfcnt_signal,     libmessage_cbfcnt_signal);
 
-    result = libmsg_srvtime_register_getdate(libmsg_cbfcnt_getdate);
-    result = libmsg_srvtime_wait();
+    result = libmsg_srvtime_srv_register_getdate(libmsg_cbfcnt_getdate);
+    result = libmsg_srvtime_srv_register_signal(libmsg_cbfcnt_signaldate);
+    result = libmsg_srvtime_srv_wait();
 
     return result;
 }

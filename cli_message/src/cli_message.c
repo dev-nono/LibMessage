@@ -134,15 +134,16 @@ int test_msgQueue(char *a_ID)
 
     return result;
 }
-int check_loop(const char* a_UniqID)
+int check_loop(const char* a_UniqID, const char* a_value)
 {
     int     result = 0;
     double  vDate = 0.0;
 
+    (void)a_value;
     do{
         vDate = 0.0;
 
-        result =  libmsg_srvtime_getdate(a_UniqID, &vDate);
+        result =  libmsg_srvtime_cli_getdate(a_UniqID, &vDate);
 
         if( 0 == result )
         {
@@ -156,6 +157,36 @@ int check_loop(const char* a_UniqID)
         getchar();
 
     }while(1);
+
+    return 0;
+}
+
+static int libmsg_cbfcnt_signaldate(
+        const sRequest_t  *a_pRequest,
+        sResponse_t *a_pResponse)
+
+{
+
+    return 0;
+}
+
+int check_signal(const char* a_UniqID, const char* a_value)
+{
+    int         result  = 0;
+    double      timeout = 0.0;
+
+    timeout = atof(a_value);
+
+    result = libmsg_srvtime_cli_signaldate(a_UniqID,
+            timeout,
+            &libmsg_cbfcnt_signaldate);
+
+    if( 0 == result )
+    {
+        result = libmsg_srvtime_cli_wait();
+    }
+
+    return result;
 }
 
 int main(int argc, char* argv[])
@@ -169,13 +200,22 @@ int main(int argc, char* argv[])
 //    result = libmessage_getdate("cli_message",SERVER_TIME_ID_GETDATE,&vDate);
 //    printf("\ncli_message : result = %d date = %f \n",result,vDate);
 
-    if(argc > 1 )
+    if(argc > 3 )
     {
-        result =  check_loop(argv[1]);
+        if( 0 == strcmp(argv[1] ,"loop") )
+        {
+            result =  check_loop(argv[2],"");
+        }
+        if( 0 == strcmp(argv[1] ,"signal") )
+        {
+            result =  check_signal(argv[2],argv[3]);
+        }
     }
     else
     {
-        fprintf(stderr,"error missing argument ID \n");
+        fprintf(stderr,"\n syntaxe error : %s [cmd] [ID] [value] \n",argv[0]);
+        fprintf(stderr," [cmd] : loop | signal \n");
+        fprintf(stderr," [ID] : 1, 2 ,3. ... \n\n");
     }
 
     return result;
