@@ -161,11 +161,17 @@ int check_loop(const char* a_UniqID, const char* a_value)
     return 0;
 }
 
-static int libmsg_cbfcnt_signaldate(
+static int libmsg_cli_cbfcnt_signaldate(
         const sRequest_t  *a_pRequest,
         sResponse_t *a_pResponse)
-
 {
+
+    sSignaldateResponse_t *pSignaldateResponse = (sSignaldateResponse_t *)a_pResponse->data;
+
+    TRACE_DBG4(" : date=%ld.%09ld \n",
+            pSignaldateResponse->timespesc.tv_sec,
+            pSignaldateResponse->timespesc.tv_nsec);
+
 
     return 0;
 }
@@ -179,7 +185,7 @@ int check_signal(const char* a_UniqID, const char* a_value)
 
     result = libmsg_srvtime_cli_signaldate(a_UniqID,
             timeout,
-            &libmsg_cbfcnt_signaldate);
+            &libmsg_cli_cbfcnt_signaldate);
 
     if( 0 == result )
     {

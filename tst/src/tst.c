@@ -17,6 +17,10 @@
 #include <sys/time.h>
 #include <math.h>
 #include <stdint.h>
+#include <signal.h>
+#include <pthread.h>
+#include <unistd.h>
+
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -25,27 +29,27 @@
 
 #include "utils.h"
 
- int   tst_clock()
- {
-     int result = 0;
+int   tst_clock()
+{
+    int result = 0;
 
-     struct timeval  time_v = {0,1e6 / 1000 * 10};
-     struct timeval  time_v_result = {0};
+    struct timeval  time_v = {0,1e6 / 1000 * 10};
+    struct timeval  time_v_result = {0};
 
-     struct timespec ts_timeout = {0,1e9 / 1000 *10 };
-     struct timespec ts_result = {0};
+    struct timespec ts_timeout = {0,1e9 / 1000 *10 };
+    struct timespec ts_result = {0};
 
     // timeradd_gtofd(time_v,&time_v_result);
 
 
-         struct timespec ts_curtime = {0,0};
+    struct timespec ts_curtime = {0,0};
 
-         result = clock_gettime(CLOCK_REALTIME, &ts_curtime);
+    result = clock_gettime(CLOCK_REALTIME, &ts_curtime);
 
-         timeradd_ts(ts_curtime,ts_timeout,&ts_result);
+    timeradd_ts(ts_curtime,ts_timeout,&ts_result);
 
-     return result;
- }
+    return result;
+}
 
 int  tst_ts_split_double()
 {
@@ -165,11 +169,11 @@ int  tst_ts_split_double()
 
 
     //d3 =
-//    d2 = remainder(date,1);
-//
-//
-//    d1 = fmod(date,(double)ts.tv_sec);
-//    d2 = remainder(date,(double)ts.tv_sec);
+    //    d2 = remainder(date,1);
+    //
+    //
+    //    d1 = fmod(date,(double)ts.tv_sec);
+    //    d2 = remainder(date,(double)ts.tv_sec);
 
     return result;
 }
@@ -187,7 +191,7 @@ int tst_mq_open()
 
     errno = 0;
     //result = mq_open(MQ_FILENAME, O_CREAT,S_IRWXG,&vAttr);
-//    result = mq_open(MQ_FILENAME, O_CREAT,S_IRWXG,0); // ok
+    //    result = mq_open(MQ_FILENAME, O_CREAT,S_IRWXG,0); // ok
     result = mq_open(MQ_FILENAME, O_CREAT,S_IRWXO | S_IRWXG | S_IRWXU ,&vAttr); // ok
 
     printf("mq_open(%s) result=%d errno=%d %s\n",
@@ -197,6 +201,122 @@ int tst_mq_open()
     return EXIT_SUCCESS;
 }
 
+static void handler(int sig, siginfo_t *si, void *unused)
+{
+    printf("handler : signal Reçu %d  \n",sig);
+
+    //signal(sig,SIG_IGN);
+
+}
+
+static void *threadFunction_signal(void* a_pArg)
+{
+    int result = 0;
+    int signalreceive = 0;
+
+    struct sigaction    sSigaction = {0};
+    sigset_t            sigset      = {0};
+    siginfo_t       siginfo     = {0};
+
+    //*************************************************
+    //*************************************************
+    sigemptyset(&sigset);
+    sigaddset(&sigset, SIGUSR1);
+    sigaddset(&sigset, SIGUSR2);
+    sigaddset(&sigset, SIGALRM);
+
+    result = pthread_sigmask(SIG_BLOCK, &sigset, NULL);
+
+    //*************************************************
+    //*************************************************
+//    sSigaction.sa_flags = SA_SIGINFO;
+//    sigemptyset(&sSigaction.sa_mask);
+//
+//    sigaddset(&sSigaction.sa_mask, SIGUSR1);
+////    sigaddset(&sSigset.sa_mask, SIGUSR2);
+////    sigaddset(&sSigset.sa_mask, SIGALRM);
+//
+//    //sSigset.sa_sigaction = handler;
+//
+//    result = sigaction(SIGUSR1, &sSigaction, NULL);
+//    result = sigaction(SIGUSR2, &sSigaction, NULL);
+//    result = sigaction(SIGALRM, &sSigaction, NULL);
+
+    printf("threadFunction_signal_1 \n");
+    do{
+
+        signalreceive = 0;
+        memset(&siginfo,0,sizeof(siginfo));
+
+        printf("threadFunction_signal_2 \n");
+
+//        pause(); // ok sigaction + handler
+//        result = sigwait(&sigset, &signalreceive); ok pthread_sigmask
+//        result = sigwait(&sigset, &signalreceive);
+//        printf("threadFunction_signal_3 result = %d  signalreceive=%d \n",
+//        result,signalreceive);
+
+        result = sigwaitinfo(&sigset, &siginfo);
+        printf("threadFunction_signal_3 result = %d  signalreceive=%d \n",
+        result,siginfo.si_signo);
+
+    }while(1);
+
+    return (void*)0;
+}
+
+int tst_signal()
+{
+    int result = EXIT_SUCCESS;
+    int cmd = 0;
+
+    pthread_t pthreadID = 0;
+
+
+    // create thread
+    result =  pthread_create(&pthreadID,
+            NULL,
+            &threadFunction_signal,
+            (void*)0);
+
+
+    do{
+        printf("type a key to continue : 1 , 2 , a=alarm \n");
+        cmd = getchar();
+
+        if( '1' == cmd )
+        {
+            // send SIGUSR1
+            pthread_kill(pthreadID,SIGUSR1);
+        }
+        else if( '2' == cmd )
+        {
+            pthread_kill(pthreadID,SIGUSR2);
+            // send SIGUSR2
+        }
+        else if( 'a' == cmd )
+        {
+            // send SIGALRM
+            pthread_kill(pthreadID,SIGALRM);
+
+        }
+        else
+        {
+
+        }
+
+
+
+
+    }while(1);
+
+
+
+    return result;
+
+}
+
+
 int main(int argc , char *argv[] )
 {
 
@@ -204,6 +324,8 @@ int main(int argc , char *argv[] )
 
     // tst_clock();
 
-    tst_ts_split_double();
+    // tst_ts_split_double();
+
+    tst_signal();
 
 }

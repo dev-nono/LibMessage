@@ -17,6 +17,7 @@
 #include <sys/stat.h>        /* Pour les constantes des modes */
 #include <mqueue.h>
 #include <pthread.h>
+#include <signal.h>
 
 #include "apisyslog.h"
 #include "utils.h"
@@ -158,6 +159,7 @@ int libmsg_cli_getdata(
 
     return result;
 }
+
 
 static void * libmsg_srv_threadFunction(void * a_pArg)
 {
@@ -333,6 +335,140 @@ TRACE_DBG1("_1_")
     return (void*)0;
 }
 
+static void * libmsg_cli_threadFunction(void * a_pArg)
+{
+    int             result          = 0;
+
+    sDataThreadCtx_t *pContex = (sDataThreadCtx_t *)a_pArg;
+
+    struct pollfd   fd_client   = {0};
+//    struct pollfd   fd_server   = {0};
+    struct mq_attr  vAttr       = {0};
+
+    char        msgbuffer[APISYSLOG_MSG_SIZE]   = {0};
+
+    char    buffRequest[1204*100];
+    sRequest_t  request = {0};
+    sResponse_t response= {0};
+
+
+    mq_unlink(pContex->dataService.filenameServer);
+
+    vAttr.mq_flags  = O_CLOEXEC;
+    vAttr.mq_curmsgs = 1;
+    vAttr.mq_maxmsg = 10;
+    vAttr.mq_msgsize = HARD_MAX;
+
+
+TRACE_DBG1("_1_")
+    if(0 == result)
+    {
+        do{
+
+            memset(&request ,0,sizeof(request));
+            memset(&response,0,sizeof(response));
+
+            //***********************************************************
+            //                open client
+            //***********************************************************
+                TRACE_DBG1("_1_ result=0x%X",result);
+
+                errno = 0;
+                fd_client.fd = mq_open(pContex->dataService.request.filenameClient,
+                                        O_RDONLY);
+
+                if( -1 == fd_client.fd )
+                {
+                    result = errno;
+                    snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
+                            "mq_open(%.50s) result=%d errno=%d %s \n",
+                            pContex->dataService.request.filenameClient,
+                            result , errno,strerror(errno));
+                    TRACE_ERR(msgbuffer);
+                }
+
+            TRACE_DBG1("_2_");
+            //***********************************************************
+            //                  POLL
+            //***********************************************************
+            fd_client.events = POLLIN | POLLPRI;
+            fd_client.revents = 0;
+
+            errno = 0;
+            result = poll(&fd_client,1,-1);
+            TRACE_DBG1("_3_ poll=0x%X",result);
+
+            if ( 0 == result) // timeout
+            {
+                snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
+                        "error poll(%d) result=%d TIMEOUT \n",
+                        fd_client.fd,
+                        result );
+                TRACE_ERR(msgbuffer);
+                result = -1;
+                continue;
+            }
+            else if ( -1 == result )
+            {
+                snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
+                        "error poll(%d) result=%d errno=%d %s \n",
+                        fd_client.fd,
+                        result , errno,strerror(errno));
+                TRACE_ERR(msgbuffer);
+            }
+            else
+            {
+                result = 0; // to chech event
+            }
+
+            //***********************************************************
+            //                  RECEIVE DATA
+            //***********************************************************
+            if ( 0 == result)
+            {
+                TRACE_DBG1("_5_");
+               //            fprintf(stderr,"_4_ \n");
+                memset( buffRequest,0,sizeof(buffRequest));
+
+                errno = 0;
+                result = mq_receive(fd_client.fd,(char*)&response,
+                        sizeof(response),0);
+                //            fprintf(stderr,"_5_ \n");
+                TRACE_DBG1("_6_ result=0x%X",result);
+
+                if ( (0 == result) || (-1 == result))
+                {
+                    snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
+                            "error mq_receive(%d) result=%d errno=%d %s \n",
+                            fd_client.fd,
+                            result , errno,strerror(errno));
+                    TRACE_ERR(msgbuffer);
+                    continue;
+                }
+                else
+                {
+                    result = 0;
+                }
+
+                //            printf("vClientfilename=%s \n",vClientfilename);
+            }
+
+            if( 0 == result )
+            {
+                TRACE_DBG1("_7_ result=0x%X",result);
+
+                result = pContex->dataService.pFunctCB(&request,&response);
+            }
+            //        fprintf(stderr,"_11_ \n");
+
+            mq_close(fd_client.fd);
+
+        }while(1);
+
+    }// if(0 == result)
+
+    return (void*)0;
+}
 //************************************************************
 //*
 //************************************************************
@@ -357,6 +493,79 @@ int libmsg_srv_register_svc(sDataThreadCtx_t *a_pDataThreadCtx)
                 result,strerror(result));
 
         TRACE_ERR(msgbuffer);
+    }
+
+    return result;
+}
+//************************************************************
+//*
+//************************************************************
+int libmsg_cli_register_svc(sDataThreadCtx_t *a_pDataThreadCtx)
+{
+    int result = 0;
+    char msgbuffer[APISYSLOG_MSG_SIZE] = {0};
+
+    //*****************************
+    // create new tread for listening incomming messages
+    //*****************************
+    errno = 0;
+    result =  pthread_create(&a_pDataThreadCtx->pthreadID,
+            NULL,
+            &libmsg_cli_threadFunction,
+            (void*)a_pDataThreadCtx);
+
+    if( 0 != result )
+    {
+        snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
+                ": pthread_create() error =%d %s",
+                result,strerror(result));
+
+        TRACE_ERR(msgbuffer);
+    }
+
+    return result;
+}
+
+//***************************************************
+// return   : -1 if find
+//          :  0 if not find
+//***************************************************
+int libmsg_srv_find_registred_client(
+        sRequest_t      *a_pRequest,
+        unsigned int    a_nfds,
+        const char      *a_filenameClient)
+{
+    int result = 0;
+    int unsigned ii = 0;
+
+    if( 0 == a_nfds )
+    {
+        result = 0;
+    }
+    else
+    {
+        for(ii=0;       (ii < (MAX_POLL_FD))
+                    &&  (ii <= a_nfds)
+                    &&  (0 < a_nfds);
+            ii++ )
+        {
+            result = strcmp(a_pRequest->filenameClient,a_filenameClient);
+
+            if( result == 0 )
+            {
+                result = -1;
+                break;
+            }
+        }
+
+        if( 0 == result)
+        {
+            result = -1;
+        }
+        else
+        {
+            result = 0;
+        }
     }
 
     return result;

@@ -98,7 +98,9 @@ struct sDataThreadCtx
     sDataService_t  dataService;
 
     // for client signal;
-    struct pollfd   pollFdClient[MAX_POLL_FD];
+    sRequest_t      request[MAX_POLL_FD];
+    int             filedescriptor[MAX_POLL_FD];
+    //struct pollfd   pollFdClient[MAX_POLL_FD];
     nfds_t          nfds;
 
 };
@@ -112,8 +114,12 @@ int     libmsg_cli_getdata(
 //        sResponse_t         *a_pResponse);
 
 int libmsg_srv_register_svc(sDataThreadCtx_t *a_pDataThreadCtx);
-int libmsg_srv_register_signal(sDataThreadCtx_t *a_pDataThreadCtx);
+int libmsg_cli_register_svc(sDataThreadCtx_t *a_pDataThreadCtx);
 
+int libmsg_srv_find_registred_client(
+        sRequest_t      *a_pRequest,
+        unsigned int    a_nfds,
+        const char      *a_filenameClient);
 
 
 
