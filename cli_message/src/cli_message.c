@@ -180,6 +180,7 @@ int check_signal(const char* a_UniqID, const char* a_value)
 {
     int         result  = 0;
     double      timeout = 0.0;
+    char        buffer[255] = {0};
 
     timeout = atof(a_value);
 
@@ -187,10 +188,18 @@ int check_signal(const char* a_UniqID, const char* a_value)
             timeout,
             &libmsg_cli_cbfcnt_signaldate);
 
-    if( 0 == result )
-    {
-        result = libmsg_srvtime_cli_wait();
-    }
+//    if( 0 == result )
+//    {
+//        result = libmsg_srvtime_cli_wait();
+//    }
+    do{
+
+        memset(buffer,0,255);
+        fgets(buffer,255,stdin);
+
+       // if( buffer[])
+
+    }while(1);
 
     return result;
 }

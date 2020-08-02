@@ -99,11 +99,17 @@
                         					
                     </folderInfo>
                     					
+                    <fileInfo id="cdt.managedbuild.config.gnu.exe.debug.1175612013.10702252" name="socket_test.c" rcbsApplicability="disable" resourcePath="src/socket_test.c" toolsToInvoke="cdt.managedbuild.tool.gnu.c.compiler.exe.debug.2086471411.601004025">
+                        						
+                        <tool id="cdt.managedbuild.tool.gnu.c.compiler.exe.debug.2086471411.601004025" name="GCC C Compiler" superClass="cdt.managedbuild.tool.gnu.c.compiler.exe.debug.2086471411"/>
+                        					
+                    </fileInfo>
+                    					
                     <sourceEntries>
                         						
                         <entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="common"/>
                         						
-                        <entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="src"/>
+                        <entry excluding="socket_test.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="src"/>
                         					
                     </sourceEntries>
                     				
