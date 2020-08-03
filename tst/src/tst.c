@@ -29,6 +29,11 @@
 
 #include "utils.h"
 
+
+int main_socket(int argc, char *argv[]);
+
+
+
 int   tst_clock()
 {
     int result = 0;
@@ -326,6 +331,9 @@ int main(int argc , char *argv[] )
 
     // tst_ts_split_double();
 
-    tst_signal();
+    // tst_signal();
+
+    main_socket(argc, argv);
+
 
 }

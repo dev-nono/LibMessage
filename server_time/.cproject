@@ -301,7 +301,7 @@
                                     									
                                     <listOptionValue builtIn="false" value="&quot;${workspace_loc:/libmessage/inc}&quot;"/>
                                     									
-                                    <listOptionValue builtIn="false" value="/media/ssd_data/home/bruno/Dev/projects/Project/common/inc"/>
+                                    <listOptionValue builtIn="false" value="&quot;${workspace_loc:/utilstools/inc}&quot;"/>
                                     									
                                     <listOptionValue builtIn="false" value="&quot;${workspace_loc:/apisyslog}&quot;"/>
                                     								
@@ -323,6 +323,8 @@
                                     									
                                     <listOptionValue builtIn="false" value="pthread"/>
                                     									
+                                    <listOptionValue builtIn="false" value="utilstools"/>
+                                    									
                                     <listOptionValue builtIn="false" value="rt"/>
                                     									
                                     <listOptionValue builtIn="false" value="apisyslog"/>
@@ -337,7 +339,7 @@
                                     									
                                     <listOptionValue builtIn="false" value="&quot;${workspace_loc:/apisyslog/Debug}&quot;"/>
                                     									
-                                    <listOptionValue builtIn="false" value="&quot;${workspace_loc:/apisyslog/Debug}&quot;"/>
+                                    <listOptionValue builtIn="false" value="&quot;${workspace_loc:/utilstools/Debug}&quot;"/>
                                     								
                                 </option>
                                 								

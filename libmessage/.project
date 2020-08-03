@@ -29,10 +29,5 @@
 			<type>1</type>
 			<location>/media/ssd_data/home/bruno/Dev/projects/Project/common/inc/utils.h</location>
 		</link>
-		<link>
-			<name>src/utils.c</name>
-			<type>1</type>
-			<location>/media/ssd_data/home/bruno/Dev/projects/Project/common/src/utils.c</location>
-		</link>
 	</linkedResources>
 </projectDescription>
