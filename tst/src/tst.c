@@ -335,7 +335,7 @@ typedef struct sData sData_t;
 
 int printTQ(ListQ_t *a_pListQ)
 {
-    s_item_t *pItem = 0;
+    ListQ_item_t *pItem = 0;
 
     printf(">>> ");
 
@@ -351,17 +351,17 @@ int printTQ(ListQ_t *a_pListQ)
     return 0;
 }
 ListQ_t g_ListID;
-s_item_t *pItem  = 0;
-s_item_t *pItem1 = 0;
-s_item_t *pItem2 = 0;
-s_item_t *pItem3 = 0;
-s_item_t *pItem4 = 0;
-s_item_t *pItem5 = 0;
-s_item_t *pItem6 = 0;
-s_item_t *pItem7 = 0;
-s_item_t *pItem8 = 0;
-s_item_t *pItem9 = 0;
-s_item_t *pItem10 = 0;
+ListQ_item_t *pItem  = 0;
+ListQ_item_t *pItem1 = 0;
+ListQ_item_t *pItem2 = 0;
+ListQ_item_t *pItem3 = 0;
+ListQ_item_t *pItem4 = 0;
+ListQ_item_t *pItem5 = 0;
+ListQ_item_t *pItem6 = 0;
+ListQ_item_t *pItem7 = 0;
+ListQ_item_t *pItem8 = 0;
+ListQ_item_t *pItem9 = 0;
+ListQ_item_t *pItem10 = 0;
 
 sData_t *pDate1 = 0;
 sData_t *pDate2 = 0;
@@ -505,8 +505,8 @@ int main(int argc , char *argv[] )
 
     // tst_signal();
 
-    //main_socket(argc, argv);
+    main_socket(argc, argv);
 
 
-    test_list();
+//    test_list();
 }
