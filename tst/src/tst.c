@@ -20,7 +20,7 @@
 #include <signal.h>
 #include <pthread.h>
 #include <unistd.h>
-
+#include <sys/queue.h> // double list
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -28,7 +28,7 @@
 #define MQ_FILENAME "/server_time"
 
 #include "utils.h"
-
+#include "listtailqueue.h"
 
 int main_socket(int argc, char *argv[]);
 
@@ -234,18 +234,18 @@ static void *threadFunction_signal(void* a_pArg)
 
     //*************************************************
     //*************************************************
-//    sSigaction.sa_flags = SA_SIGINFO;
-//    sigemptyset(&sSigaction.sa_mask);
-//
-//    sigaddset(&sSigaction.sa_mask, SIGUSR1);
-////    sigaddset(&sSigset.sa_mask, SIGUSR2);
-////    sigaddset(&sSigset.sa_mask, SIGALRM);
-//
-//    //sSigset.sa_sigaction = handler;
-//
-//    result = sigaction(SIGUSR1, &sSigaction, NULL);
-//    result = sigaction(SIGUSR2, &sSigaction, NULL);
-//    result = sigaction(SIGALRM, &sSigaction, NULL);
+    //    sSigaction.sa_flags = SA_SIGINFO;
+    //    sigemptyset(&sSigaction.sa_mask);
+    //
+    //    sigaddset(&sSigaction.sa_mask, SIGUSR1);
+    ////    sigaddset(&sSigset.sa_mask, SIGUSR2);
+    ////    sigaddset(&sSigset.sa_mask, SIGALRM);
+    //
+    //    //sSigset.sa_sigaction = handler;
+    //
+    //    result = sigaction(SIGUSR1, &sSigaction, NULL);
+    //    result = sigaction(SIGUSR2, &sSigaction, NULL);
+    //    result = sigaction(SIGALRM, &sSigaction, NULL);
 
     printf("threadFunction_signal_1 \n");
     do{
@@ -255,15 +255,15 @@ static void *threadFunction_signal(void* a_pArg)
 
         printf("threadFunction_signal_2 \n");
 
-//        pause(); // ok sigaction + handler
-//        result = sigwait(&sigset, &signalreceive); ok pthread_sigmask
-//        result = sigwait(&sigset, &signalreceive);
-//        printf("threadFunction_signal_3 result = %d  signalreceive=%d \n",
-//        result,signalreceive);
+        //        pause(); // ok sigaction + handler
+        //        result = sigwait(&sigset, &signalreceive); ok pthread_sigmask
+        //        result = sigwait(&sigset, &signalreceive);
+        //        printf("threadFunction_signal_3 result = %d  signalreceive=%d \n",
+        //        result,signalreceive);
 
         result = sigwaitinfo(&sigset, &siginfo);
         printf("threadFunction_signal_3 result = %d  signalreceive=%d \n",
-        result,siginfo.si_signo);
+                result,siginfo.si_signo);
 
     }while(1);
 
@@ -322,6 +322,178 @@ int tst_signal()
 }
 
 
+#define SETITEM( XXX )    pDate ##XXX = (sData_t*)pItem ##XXX->pData; pDate ##XXX->ID   = XXX;
+
+
+struct sData
+{
+    int ID;
+};
+typedef struct sData sData_t;
+
+
+
+int printTQ(ListQ_t *a_pListQ)
+{
+    s_item_t *pItem = 0;
+
+    printf(">>> ");
+
+    FOR_TQ(pItem,a_pListQ)
+    {
+        sData_t *pData = (sData_t*)pItem->pData;
+        printf("%d ",pData->ID);
+        //printf("%p ",pItem->pData);
+    }
+
+    printf(" <<<\n");
+
+    return 0;
+}
+ListQ_t g_ListID;
+s_item_t *pItem  = 0;
+s_item_t *pItem1 = 0;
+s_item_t *pItem2 = 0;
+s_item_t *pItem3 = 0;
+s_item_t *pItem4 = 0;
+s_item_t *pItem5 = 0;
+s_item_t *pItem6 = 0;
+s_item_t *pItem7 = 0;
+s_item_t *pItem8 = 0;
+s_item_t *pItem9 = 0;
+s_item_t *pItem10 = 0;
+
+sData_t *pDate1 = 0;
+sData_t *pDate2 = 0;
+sData_t *pDate3 = 0;
+sData_t *pDate4 = 0;
+sData_t *pDate5 = 0;
+sData_t *pDate6 = 0;
+sData_t *pDate7 = 0;
+sData_t *pDate8 = 0;
+sData_t *pDate9 = 0;
+
+void test_list_insert(int a_nbitem)
+{
+
+    if(  a_nbitem >= 2 )
+    {
+        pItem2 = tq_insertTail(&g_ListID);    SETITEM(2);
+        //pDate2 = pItem2->pData;pDate2->ID   = 2;        pItem2->pData = (void*)2;
+    }
+    if(  a_nbitem >= 3 )
+    {
+        pItem3 = tq_insertAfter(&g_ListID,pItem2);SETITEM(3);
+        //pDate3 = pItem3->pData;pDate3->ID   = 3;        pItem3->pData = (void*)3;
+    }
+    if(  a_nbitem >= 4 )
+    {
+        pItem4 = tq_insertTail(&g_ListID);SETITEM(4);
+        //pDate4 = pItem4->pData;pDate4->ID   = 4;        pItem4->pData = (void*)4;
+    }
+
+    if(  a_nbitem >= 5 )
+    {
+        pItem5 = tq_insertTail(&g_ListID);SETITEM(5);
+        //pDate5 = pItem5->pData;pDate5->ID   = 5;        pItem5->pData = (void*)5;
+    }
+    if(  a_nbitem >= 1 )
+    {
+        pItem1 = tq_insertHead(&g_ListID);SETITEM(1);
+        //pDate1 = pItem1->pData;pDate1->ID   = 1;        pItem1->pData = (void*)1;
+    }
+
+    if(  a_nbitem >= 6 )
+    {
+        pItem6 = tq_insertTail(&g_ListID);SETITEM(6);
+    }
+    if(  a_nbitem >= 7 )
+    {
+        pItem7 = tq_insertTail(&g_ListID);SETITEM(7);
+    }
+    if(  a_nbitem >= 8 )
+    {
+        pItem8 = tq_insertTail(&g_ListID);SETITEM(8);
+    }
+
+    printTQ(&g_ListID);
+}
+int test_list()
+{
+    tq_init(&g_ListID,sizeof(sData_t));
+
+    //****************************************************
+    test_list_insert(5);
+
+    pItem6 = tq_createItemList(&g_ListID);    SETITEM(6);
+//    pDate6 = pItem6->pData;pDate6->ID   = 6;
+//    pItem6->pData = (void*)6;
+
+    tq_insertItemHead(&g_ListID,pItem6);
+
+    printf("\n\t*** 1 tq_tq_insertItemHead(6) \n");
+    printTQ(&g_ListID);
+//**************************************
+    pItem7 = tq_createItemList(&g_ListID); SETITEM(7);
+//    pDate7 = pItem7->pData;pDate7->ID   = 7;
+//    pItem7->pData = (void*)7;
+
+
+    tq_insertItemTail(&g_ListID,pItem7);
+
+    printf("\n\t*** 2 tq_insertItemTail(7) \n");
+    printTQ(&g_ListID);
+
+//**************************************
+
+    pItem8 = tq_createItemList(&g_ListID);  SETITEM(8);
+//    pDate8 = pItem8->pData;pDate8->ID   = 8;
+//    pItem8->pData = (void*)8;
+
+    tq_insertItemAfter(&g_ListID,pItem3,pItem8);
+
+    printf("\n\t*** 3 tq_insertItemAfter(8,3) \n");
+    printTQ(&g_ListID);
+
+    //****************************************************
+    tq_removeItemList(&g_ListID,pItem8);
+    printf("\n\t*** 4  tq_removeItemList(8) \n");
+    printTQ(&g_ListID);
+
+    //****************************************************
+    tq_removeTailList(&g_ListID);
+    printf("\n\t*** 5  tq_removeTailList() \n");
+    printTQ(&g_ListID);
+
+    //****************************************************
+    tq_removeHeadList(&g_ListID);
+    printf("\n\t*** 6  tq_removeHeadList() \n");
+    printTQ(&g_ListID);
+
+
+    tq_clearList(&g_ListID);
+    printf("\n\t*** 7  tq_clearList\n");
+    printTQ(&g_ListID);
+
+
+
+    test_list_insert(8);
+
+    tq_eraseItemList(&g_ListID,pItem6);
+    tq_eraseItemList(&g_ListID,pItem7);
+    tq_eraseItemList(&g_ListID,pItem8);
+
+    printf("\n\t*** 8  tq_eraseItemList( 6 7 8)\n");
+    printTQ(&g_ListID);
+
+    tq_eraseList(&g_ListID);
+    printf("\n\t*** 8  tq_eraseList()\n");
+    printTQ(&g_ListID);
+
+
+    return 0;
+}
+
 int main(int argc , char *argv[] )
 {
 
@@ -333,7 +505,8 @@ int main(int argc , char *argv[] )
 
     // tst_signal();
 
-    main_socket(argc, argv);
+    //main_socket(argc, argv);
 
 
+    test_list();
 }

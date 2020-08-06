@@ -1,0 +1,12 @@
+#!/bin/bash
+
+# set -x
+
+
+#export LD_LIBRARY_PATH=$PWD/libmessage/Debug/:$LD_LIBRARY_PATH
+
+. ./setlibpath
+
+./tst/Debug/tst
+
+
