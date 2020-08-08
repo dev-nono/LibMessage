@@ -27,7 +27,7 @@
 
 #define MQ_FILENAME "/server_time"
 
-#include "utils.h"
+#include <utilstools.h>
 #include "listtailqueue.h"
 
 int main_socket(int argc, char *argv[]);
@@ -493,20 +493,75 @@ int test_list()
 
     return 0;
 }
+/*
+ * DoStuff
+ */
+void DoStuff(void) {
 
+ printf("Timer went off.\n");
+ raise(SIGALRM);
+}
+int tst_itimer()
+{
+    int result = 0;
+    struct itimerval iVal = {0};
+    struct timespec date1 = {0};
+    struct timespec date2 = {0};
+
+    char buff[10] = {0};
+
+    struct sigaction    sSigaction = {0};
+    sigset_t            sigset      = {0};
+    siginfo_t       siginfo     = {0};
+
+    //*************************************************
+    //*************************************************
+//    sigemptyset(&sigset);
+//    sigaddset(&sigset, SIGALRM);
+//     sigaddset(&sigset, SIGINT);
+//   result = pthread_sigmask(SIG_BLOCK, &sigset, NULL);
+//
+
+
+    iVal.it_value.tv_sec  = 1;
+    iVal.it_value.tv_usec = 0;
+
+//    iVal.it_interval = iVal.it_value;
+//    iVal.it_interval.tv_sec  = 1;
+//    iVal.it_interval.tv_usec = 0;
+
+    signal(SIGALRM, (void (*)(int)) DoStuff);
+
+    clock_gettime(CLOCK_MONOTONIC_RAW,&date1);
+
+    result = setitimer(ITIMER_REAL, &iVal,0);
+
+    //pause();
+    result = read(0,buff,1);
+
+    clock_gettime(CLOCK_MONOTONIC_RAW,&date2);
+
+    printf("\n %ld.%ld\n %ld.%ld\n result=%d\n",
+            date1.tv_sec,date1.tv_nsec,
+            date2.tv_sec,date2.tv_nsec,
+            result);
+
+    return 0;
+}
 int main(int argc , char *argv[] )
 {
 
-    //tst_mq_open();
-
-    // tst_clock();
-
-    // tst_ts_split_double();
-
-    // tst_signal();
-
+//    tst_mq_open();
+//
+//    tst_clock();
+//
+//    tst_ts_split_double();
+//
+//    tst_signal();
+//
     main_socket(argc, argv);
-
-
+//
+//        tst_itimer();
+//
 //    test_list();
 }

@@ -22,7 +22,7 @@
 #include <mqueue.h>
 
 #include "apisyslog.h"
-#include "utils.h"
+#include "utilstools.h"
 
 #include "libmsg_srvtime.h"
 

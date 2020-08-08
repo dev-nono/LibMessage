@@ -20,7 +20,6 @@
 #include <signal.h>
 
 #include "apisyslog.h"
-#include "utils.h"
 
 #include "libmsg_int.h"
 #include "libmsg.h"

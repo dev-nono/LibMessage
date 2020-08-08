@@ -25,12 +25,8 @@
 #include <limits.h>
 
 #include "apisyslog.h"
-#include "utils.h"
-
 
 #include "libmsg_srvtime.h"
-//#include "libmessage_int.h"
-//#include "libmessage.h"
 
 
 // client  : /process.id.svc
@@ -45,6 +41,10 @@ static sDataThreadCtx_t g_ThreadCtx_srv_signaldateNotify     = {0};
 
 
 
+int libmsg_srvtime_cli_getdate1( _IN_ const char* a_UniqID, _OUT_ double *a_Date)
+{
+
+}
 //************************************************************
 //  client side
 //      _OUT_ double *a_pDate : buffer data output

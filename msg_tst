@@ -7,6 +7,6 @@
 
 . ./setlibpath
 
-./tst/Debug/tst
+./tst/Debug/tst $1 $2 $3 $4
 
 

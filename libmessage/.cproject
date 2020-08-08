@@ -413,6 +413,12 @@
                         					
                     </folderInfo>
                     					
+                    <fileInfo id="cdt.managedbuild.config.gnu.so.debug.1173545111.716738769.297340239" name="libmessage_server_time.c" rcbsApplicability="disable" resourcePath="src/libmessage_server_time.c" toolsToInvoke="cdt.managedbuild.tool.gnu.c.compiler.so.debug.1577102227.811381862">
+                        						
+                        <tool id="cdt.managedbuild.tool.gnu.c.compiler.so.debug.1577102227.811381862" name="GCC C Compiler" superClass="cdt.managedbuild.tool.gnu.c.compiler.so.debug.1577102227"/>
+                        					
+                    </fileInfo>
+                    					
                     <fileInfo id="cdt.managedbuild.config.gnu.so.debug.1173545111.716738769.src/temp" name="temp" rcbsApplicability="disable" resourcePath="src/temp" toolsToInvoke=""/>
                     					
                     <fileInfo id="cdt.managedbuild.config.gnu.so.debug.1173545111.716738769.diagram_de_sequence.txt" name="diagram_de_sequence.txt" rcbsApplicability="disable" resourcePath="diagram_de_sequence.txt" toolsToInvoke=""/>
@@ -425,7 +431,7 @@
                     					
                     <sourceEntries>
                         						
-                        <entry excluding="inc/libmessage.h|inc/libmsg_int.h|inc/libmessage_int.h|src/libmessage.c|src/temp|diagram_de_sequence.txt" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
+                        <entry excluding="src/libmsg.c|inc/libmessage.h|inc/libmsg_int.h|inc/libmessage_int.h|src/libmessage.c|src/temp|diagram_de_sequence.txt" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
                         					
                     </sourceEntries>
                     				

@@ -21,7 +21,6 @@
 #include <pthread.h>
 
 #include "apisyslog.h"
-#include "utils.h"
 
 
 #include "libmsg_srvtime.h"

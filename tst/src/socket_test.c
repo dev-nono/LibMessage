@@ -24,7 +24,8 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 
-#include "listtailqueue.h"
+#include "utilstools.h"
+
 
 #define SRV_GETDATE "/tmp/srv.getdate"
 #define CLI_GETDATE "/tmp/cli.getdate"
@@ -32,6 +33,19 @@
 int sock_cli_read   = 0;
 int sock_cli_write  = 0;
 
+
+
+typedef struct sRequest
+{
+    char clientname[NAME_MAX];
+
+}sRequest_t;
+
+typedef struct sResponse
+{
+    struct timespec date;
+
+}sResponse_t;
 
 
 #define LISTEN_BACKLOG 50
@@ -161,26 +175,47 @@ void show_signals(const sigset_t exmask)
 }
 const sigset_t getmask(void)
 {
-        static sigset_t retmask;
-        if ((sigprocmask(SIG_SETMASK, NULL, &retmask)) == -1)
-                printf("could not obtain process signal mask\n");
+    static sigset_t retmask;
+    if ((sigprocmask(SIG_SETMASK, NULL, &retmask)) == -1)
+        printf("could not obtain process signal mask\n");
 
-        return retmask;
+    return retmask;
 }
 int openConnect(const char *a_socketFilename,int* a_pSocketdescriptor)
 {
-    int result = 0;
-    int Socketdescriptor = 0;
+    int result              = 0;
+    int Socketdescriptor    = 0;
+    int yes                 = 1;
 
     struct sockaddr_un vSockaddr = {0};
 
     errno=0;
-    Socketdescriptor = socket(AF_UNIX, SOCK_STREAM, 0);
+    //Socketdescriptor = socket(AF_UNIX, SOCK_STREAM, 0);
+    Socketdescriptor = socket(AF_UNIX, SOCK_DGRAM, 0);
 
-    //    errno=0;
-    //    result = unlink(a_socketFilename);
+    if( -1 == Socketdescriptor )
+    {
+        fprintf(stderr,"%s : socket(AF_UNIX, SOCK_DGRAM)=%d errno=%d %s \n",
+                __FUNCTION__,
+                Socketdescriptor,errno,strerror(errno) );
+        result = errno;
+    }
 
-    if( -1 != Socketdescriptor )
+    if( 0 == result )
+    {
+        result = setsockopt(Socketdescriptor, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
+
+        if( 0 != result )
+        {
+            fprintf(stderr,"%s : setsockopt(Socketdescriptor, SOL_SOCKET, SO_REUSEADDR,%d)=%d errno=%d %s \n",
+                    __FUNCTION__,yes,
+                    result,errno,strerror(errno) );
+            result = errno;
+            close(Socketdescriptor);
+        }
+    }
+
+    if( 0 == result )
     {
         /* Efface la structure */
         vSockaddr.sun_family = AF_UNIX;
@@ -199,18 +234,14 @@ int openConnect(const char *a_socketFilename,int* a_pSocketdescriptor)
                     Socketdescriptor,
                     a_socketFilename,
                     result,errno,strerror(errno) );
+            close(Socketdescriptor);
+            result = errno;
         }
         else
         {
             *a_pSocketdescriptor = Socketdescriptor;
             result = 0;
         }
-    }
-    else
-    {
-        fprintf(stderr,"%s : socket()=%d errno=%d %s \n",
-                __FUNCTION__,
-                result,errno,strerror(errno) );
     }
 
     return result;
@@ -219,13 +250,36 @@ int openBind(const char *a_socketFilename,int* a_pSocketdescriptor)
 {
     int result = 0;
     int Socketdescriptor = 0;
-
+    int yes = 1;
     struct sockaddr_un sockaddr = {0};
 
     errno=0;
-    Socketdescriptor = socket(AF_UNIX, SOCK_STREAM, 0);
+    //    Socketdescriptor = socket(AF_UNIX, SOCK_STREAM, 0);
+    Socketdescriptor = socket(AF_UNIX, SOCK_DGRAM, 0);
 
-    if( -1 != Socketdescriptor )
+    if( -1 == Socketdescriptor )
+    {
+        fprintf(stderr,"%s : socket()=%d errno=%d %s \n",
+                __FUNCTION__,
+                Socketdescriptor,errno,strerror(errno) );
+        result = errno;
+    }
+
+    if( 0 == result )
+    {
+        result = setsockopt(Socketdescriptor, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
+
+        if( 0 != result )
+        {
+            fprintf(stderr,"%s : setsockopt()=%d errno=%d %s \n",
+                    __FUNCTION__,
+                    result,errno,strerror(errno) );
+            result = errno;
+            close(Socketdescriptor);
+        }
+    }
+
+    if( 0 == result)
     {
         memset(&sockaddr, 0, sizeof(struct sockaddr_un));
 
@@ -245,22 +299,119 @@ int openBind(const char *a_socketFilename,int* a_pSocketdescriptor)
                     __FUNCTION__,
                     Socketdescriptor,
                     result,errno,strerror(errno) );
+            close(Socketdescriptor);
+            result = errno;
         }
         else
         {
             *a_pSocketdescriptor = Socketdescriptor;
         }
     }
-    else
-    {
-        fprintf(stderr,"%s : socket()=%d errno=%d %s \n",
-                __FUNCTION__,
-                result,errno,strerror(errno) );
-    }
-
 
     return result;
 }
+int openBindConnect(const char  *a_clientFilename,
+        const char  *a_serverFilename,
+        int         *a_pSocketdescriptor)
+{
+    int result = 0;
+    int Socketdescriptor = 0;
+    int yes = 1;
+    struct sockaddr_un sockaddr = {0};
+
+    if( (! (*a_clientFilename)) || !(*a_serverFilename) || !a_pSocketdescriptor)
+    {
+        result = EINVAL;
+    }
+
+    if( 0 == result)
+    {
+        Socketdescriptor = socket(AF_UNIX, SOCK_DGRAM, 0);
+
+        if( -1 == Socketdescriptor )
+        {
+            fprintf(stderr,"%s : socket()=%d errno=%d %s \n",
+                    __FUNCTION__,Socketdescriptor,errno,strerror(errno) );
+            result = errno;
+        }
+    }
+    if( 0 == result )
+    {
+        result = setsockopt(Socketdescriptor, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
+
+        if( 0 != result )
+        {
+            fprintf(stderr,"%s : setsockopt()=%d errno=%d %s \n",
+                    __FUNCTION__,result,errno,strerror(errno) );
+            result = errno;
+            close(Socketdescriptor);
+        }
+    }
+
+    if( 0 == result)
+    {
+        unlink(a_clientFilename);
+
+        memset(&sockaddr, 0, sizeof(struct sockaddr_un));
+
+        /* Efface la structure */
+        sockaddr.sun_family = AF_UNIX;
+
+        strncpy(sockaddr.sun_path, a_clientFilename,
+                sizeof(sockaddr.sun_path) - 1);
+
+        errno = 0;
+        result = bind(Socketdescriptor, (struct sockaddr *) &sockaddr,
+                sizeof(struct sockaddr_un)) ;
+
+        if( -1 == result  )
+        {
+            fprintf(stderr,"%s : bind(%d)=%d errn=%d %s \n",
+                    __FUNCTION__,Socketdescriptor,
+                    result,errno,strerror(errno) );
+            close(Socketdescriptor);
+            result = errno;
+        }
+        else
+        {
+            *a_pSocketdescriptor = Socketdescriptor;
+        }
+    }
+
+    if( 0 == result)
+    {
+        memset(&sockaddr, 0, sizeof(struct sockaddr_un));
+
+        /* Efface la structure */
+        sockaddr.sun_family = AF_UNIX;
+
+        strncpy(sockaddr.sun_path, a_serverFilename,
+                sizeof(sockaddr.sun_path) - 1);
+
+        result = connect(Socketdescriptor, (struct sockaddr *) &sockaddr,
+                sizeof(struct sockaddr_un)) ;
+
+        if( -1 == result  )
+        {
+            fprintf(stderr,"%s : connect(%d,%s)=%d errn=%d %s \n",
+                    __FUNCTION__,Socketdescriptor,
+                    a_serverFilename,result,errno,strerror(errno) );
+            close(Socketdescriptor);
+            result = errno;
+        }
+    }
+
+    return result;
+}
+typedef int (*libmsg_pFunctCB_t)(const sRequest_t  *a_pRequest,sResponse_t *a_pResponse);
+
+typedef struct sThread
+{
+    pthread_t   pthreadID;
+    char        cliname[NAME_MAX];
+    libmsg_pFunctCB_t pFuction;
+
+}sThread_t;
 
 ListQ_t g_listClient =  {0};
 
@@ -269,74 +420,263 @@ typedef struct
     int fd;
 }sData_t;
 
-pthread_cond_t g_Condition          = PTHREAD_COND_INITIALIZER;
-pthread_mutex_t g_MutexCondition    = PTHREAD_MUTEX_INITIALIZER;
+pcond_t g_Condition = {0};;
 
+static void* threadfunct_srv_job_2(void* a_pArg)
+{
+    //    int result = 0;
+
+    //    sThread_t *pContext = (sThread_t*) a_pArg;
+    //
+    //    sRequest_t  request  = {0};
+    //    sResponse_t response = {0};
+    //
+    //    struct timespec ts_date= {0};
+
+    //    int sock_srv_write = -1;
+    //    int sock_srv_read  = -1;
+    //
+    //    printf("%s : _IN_1  \n",__FUNCTION__ );
+    //
+    //    result = unlink(SRV_GETDATE);
+    //
+    //    printf("%s : _2_ unlink(%s) = %d  errno=%d %s\n",
+    //            __FUNCTION__,SRV_GETDATE,
+    //            result,errno,strerror(errno) );
+    //
+    //    //    result = openBind(SRV_GETDATE,&sock_srv_read);
+    //    result = openBind(SRV_GETDATE,&sock_srv_read);
+    //
+    //    printf("%s : _3_ openBind(%s) = %d sock_srv_read=%d errno=%d %s\n",
+    //            __FUNCTION__,SRV_GETDATE,
+    //            result,sock_srv_read,errno,strerror(errno) );
+    //
+    //    do
+    //    {
+    //        sock_srv_write = -1;
+    //        sock_srv_read  = -1;
+    //
+    //
+    //        if( 0 == result )
+    //        {
+    //            //*******************************************************
+    //            // read input
+    //            //
+    //            result = read(sock_srv_read,&request,sizeof(sRequest_t));
+    //
+    //            printf("%s _4_ : read(%d,%s) result=%d \n",
+    //                    __FUNCTION__ ,sock_srv_read,request.clientname,result);
+    //        }
+    //        if( 0 == result )
+    //        {
+    //            //*******************************************************
+    //            // connect to input socket
+    //            result = openConnect(request.clientname,&sock_srv_write);
+    //
+    //            printf("%s _5_ : openConnect(%s,%d) result=%d \n",
+    //                    __FUNCTION__,
+    //                    request.clientname,sock_srv_write,result);
+    //
+    //        }
+    //        if( 0 == result )
+    //        {
+    //        }
+    //        if( 0 == result )
+    //        {
+    //        }
+    //        if( 0 == result )
+    //        {
+    //        }
+    //        if( 0 == result )
+    //        {
+    //        }
+    //        if( 0 == result )
+    //        {
+    //        }
+    //        if( 0 == result )
+    //        {
+    //        }
+    //
+    //
+    //    }while(1);
+
+    return 0;
+}
 
 static void* threadfunct_srv_job(void* a_pArg)
 {
     int result = 0;
 
-    ListQ_item_t *pItem = 0;
-    sData_t      *pData = 0;
-    int             sizeList    = 0;
 
-//    show_signals(getmask());
-//    exit(0);
+    sThread_t *pContext = (sThread_t *)a_pArg;
+
+    //    ListQ_item_t *pItem = 0;
+    //    sData_t      *pData = 0;
+    //    int           sizeList    = 0;
+
+    //    char bufferWrite[PATH_MAX];
+    //    char bufferRead[PATH_MAX];
+    //    int     sizeBuffer = 0;
+    sRequest_t  request  = {0};
+    sResponse_t response = {0};
+
+
+
+    //int sock_srv_write = -1;
+    int sock_srv_read  = -1;
+    struct sockaddr_un sockaddr = {0};
 
     printf("%s : _IN_1  \n",__FUNCTION__ );
 
-    do
+    result = unlink(SRV_GETDATE);
+
+    printf("%s : _2_ unlink(%s) = %d  errno=%d %s\n",
+            __FUNCTION__,SRV_GETDATE,
+            result,errno,strerror(errno) );
+
+    result = openBind(SRV_GETDATE,&sock_srv_read);
+
+    //if( 0 != result)
     {
-        printf("%s _2_ : DO \n",__FUNCTION__ );
+        printf("%s : _3_ openBind(%s) = %d sock_srv_read=%d errno=%d %s\n",
+                __FUNCTION__,SRV_GETDATE,
+                result,sock_srv_read,errno,strerror(errno) );
 
-        pthread_mutex_lock(&g_MutexCondition);
+    }//result = openBind(SRV_GETDATE,&sock_srv_read);
 
-        printf("%s _3_ : DO \n",__FUNCTION__ );
+    //    if( 0 == result)
+    //    {
+    //        close(sock_srv_read);
+    //        result = openConnect(SRV_GETDATE,&sock_srv_read);
+    //        if( 0 != result)
+    //        {
+    //            printf("%s : _32_ openBind(%s) = %d sock_srv_read=%d errno=%d %s\n",
+    //                    __FUNCTION__,SRV_GETDATE,
+    //                    result,sock_srv_read,errno,strerror(errno) );
+    //        }
+    //    }
 
-        result = pthread_cond_wait(&g_Condition,&g_MutexCondition);
-
-        printf("%s : _4_ pthread_cond_wait()=%d  errno=%d %s \n",
-                __FUNCTION__,result,errno,strerror(errno) );
-
-        if( 0 != result )
+    if( 0 == result)
+    {
+        do
         {
-            // error
-        }
-        else
-        {
-            sizeList = tq_size(&g_listClient);
-            printf("%s _5_ : sizeList=%d \n",__FUNCTION__ ,sizeList);
 
-            tq_lock(&g_listClient);
+            if( 0 == result)
+            {
+                memset(&sockaddr, 0, sizeof(struct sockaddr_un));
 
-            pItem = tq_removeHeadList(&g_listClient);
+                /* Efface la structure */
+                sockaddr.sun_family = AF_UNSPEC;
 
-            pData = (sData_t*)tq_destroyItem(pItem,0);
+                result = connect(sock_srv_read, (struct sockaddr *) &sockaddr,
+                        sizeof(struct sockaddr_un)) ;
 
-            tq_unlock(&g_listClient);
-
-            printf("%s _6_ : pData->fd=%d \n",__FUNCTION__ ,pData->fd);
-
-           close(pData->fd);
-
-            free(pData);
-
-            sizeList = tq_size(&g_listClient);
-            printf("%s _7_ : sizeList=%d \n",__FUNCTION__ ,sizeList);
-        }
+                if( -1 == result  )
+                {
+                    fprintf(stderr,"%s : connect(%d,%s)=%d errn=%d %s \n",
+                            __FUNCTION__,
+                            sock_srv_read,
+                            request.clientname,
+                            result,errno,strerror(errno) );
+                    result = errno;
+                }
+            }
 
 
-        pthread_mutex_unlock(&g_MutexCondition);
+            {
+                memset(&request,0,sizeof(sRequest_t));
+                memset(&response,0,sizeof(sResponse_t));
 
-        sizeList = tq_size(&g_listClient);
-        printf("%s _8_ : sizeList=%d \n",__FUNCTION__ ,sizeList);
+                //*******************************************************
+                // read input
+                //
+                //            result = read(p1Data->fd,&request,sizeof(sRequest_t));
+                result = read(sock_srv_read,&request,sizeof(sRequest_t));
 
-    }while(1);
+                printf("%s _4_ : read(%d,%s) result=%d \n",
+                        __FUNCTION__ ,sock_srv_read,
+                        request.clientname,result);
+
+                //*******************************************************
+                // connect to input socket
+                //                result = openConnect(request.clientname,&sock_srv_write);
+                //                result = openBind(request.clientname,&sock_srv_write);
+
+                //                printf("%s _5_ : openConnect(%s,%d) result=%d \n",
+                //                        __FUNCTION__,
+                //                        request.clientname,sock_srv_write,result);
+
+                if( -1 == result )
+                {
+                    // error
+                }
+                else
+                {
+                    result = pContext->pFuction(&request,&response);
+                }
+
+                if( 0 == result)
+                {
+                    memset(&sockaddr, 0, sizeof(struct sockaddr_un));
+
+                    /* Efface la structure */
+                    sockaddr.sun_family = AF_UNIX;
+
+                    strncpy(sockaddr.sun_path, request.clientname,
+                            sizeof(sockaddr.sun_path) - 1);
+
+                    result = connect(sock_srv_read, (struct sockaddr *) &sockaddr,
+                            sizeof(struct sockaddr_un)) ;
+
+                    if( -1 == result  )
+                    {
+                        fprintf(stderr,"%s : connect(%d,%s)=%d errn=%d %s \n",
+                                __FUNCTION__,
+                                sock_srv_read,
+                                request.clientname,
+                                result,errno,strerror(errno) );
+                        //close(sock_srv_read);
+                        result = errno;
+                    }
+                }
+                if( 0 == result )
+                {
+
+                    //*******************************************************
+                    // write data to ouput socket
+                    result = write(sock_srv_read,&response,sizeof(sResponse_t));
+
+                    printf("%s _6_ : write(%d,%ld.%ld) result=%d \n",
+                            __FUNCTION__,sock_srv_read,
+                            response.date.tv_sec,response.date.tv_nsec,
+                            result);
+
+                    result = 0;
+
+                    //close(sock_srv_write);
+                }
+            }
+            //            close(sock_srv_write);
+
+            printf("%s _7_ :  end loop \n",__FUNCTION__);
+
+
+            //        pcond_unlock(&g_Condition);
+            //
+            //        sizeList = tq_size(&g_listClient);
+            //        printf("%s _8_ : sizeList=%d \n",__FUNCTION__ ,sizeList);
+
+        }while(1);
+
+        close(sock_srv_read);
+
+    }// // 0 = openBind(SRV_GETDATE,&sock_srv_read);
 
 
     return 0;
 }
+
+
 static void* threadfunct_srv_bind(void* a_pArg)
 {
     int result = 0;
@@ -344,21 +684,21 @@ static void* threadfunct_srv_bind(void* a_pArg)
     int sock_srv_read   = 0;
     int sock_srv_write  = 0;
 
-    struct sockaddr_un client_address = {0};
-    unsigned int       client_address_len = sizeof(client_address);;
-
-    char buffer[PATH_MAX];
-    char bufferWrite[PATH_MAX];
-    char bufferRead[PATH_MAX];
-    int sizeBuffer = 0;
-    struct timespec *pDate = (struct timespec *)bufferWrite;
+    //    struct sockaddr_un client_address = {0};
+    //    unsigned int       client_address_len = sizeof(client_address);;
+    //
+    //    char buffer[PATH_MAX];
+    //    char bufferWrite[PATH_MAX];
+    //    char bufferRead[PATH_MAX];
+    //    int sizeBuffer = 0;
+    //    struct timespec *pDate = (struct timespec *)bufferWrite;
 
     ListQ_item_t    *pItem      = 0;
     sData_t         *pData      = 0;
     int             sizeList    = 0;
 
-//        show_signals(getmask());
-//        exit(0);
+    //        show_signals(getmask());
+    //        exit(0);
 
 
 
@@ -371,7 +711,8 @@ static void* threadfunct_srv_bind(void* a_pArg)
             __FUNCTION__,SRV_GETDATE,
             result,errno,strerror(errno) );
 
-    result = openBind(SRV_GETDATE,&sock_srv_read);
+    //    result = openBind(SRV_GETDATE,&sock_srv_read);
+    result = openConnect(SRV_GETDATE,&sock_srv_read);
 
     printf("%s : _3_ openBind(%s) = %d sock_srv_read=%d errno=%d %s\n",
             __FUNCTION__,SRV_GETDATE,
@@ -380,11 +721,11 @@ static void* threadfunct_srv_bind(void* a_pArg)
 
     tq_init(&g_listClient,sizeof(sData_t));
 
-    result = listen(sock_srv_read, 5);
-
-    printf("%s : _4_ listen(%d,5) = %d  errno=%d %s \n",
-            __FUNCTION__,sock_srv_read,
-            result,errno,strerror(errno) );
+    //    result = listen(sock_srv_read, 5);
+    //
+    //    printf("%s : _4_ listen(%d,5) = %d  errno=%d %s \n",
+    //            __FUNCTION__,sock_srv_read,
+    //            result,errno,strerror(errno) );
 
     do
     {
@@ -398,60 +739,53 @@ static void* threadfunct_srv_bind(void* a_pArg)
         }
         else
         {
-            client_address_len = sizeof(client_address);
-
-            sock_srv_write = accept(sock_srv_read,
-                    (struct sockaddr *)&client_address, &client_address_len);
-
-            if( 0 > sock_srv_write)
-            {
-                fprintf(stderr,"%s : accept(%d)=%d errno=%d %s \n",
-                        __FUNCTION__, sock_srv_read,
-                        sock_srv_write,errno,strerror(errno) );
-            }
-            else
+            //            client_address_len = sizeof(client_address);
+            //
+            //            sock_srv_write = accept(sock_srv_read,
+            //                    (struct sockaddr *)&client_address, &client_address_len);
+            //
+            //            if( 0 > sock_srv_write)
+            //            {
+            //                fprintf(stderr,"%s : accept(%d)=%d errno=%d %s \n",
+            //                        __FUNCTION__, sock_srv_read,
+            //                        sock_srv_write,errno,strerror(errno) );
+            //            }
+            //            else
             {
                 printf("%s : _7_ accept(%d)=%d errno=%d %s\n",__FUNCTION__,
                         sock_srv_read,sock_srv_write,
                         errno,strerror(errno) );
 
-                if( 0 != result )
-                {
+                pcond_lock(&g_Condition);
 
-                }
-                else
-                {
+                printf("%s : _8_ pthread_mutex_lock()\n",__FUNCTION__ );
 
-                    pthread_mutex_lock(&g_MutexCondition);
+                sizeList = tq_size(&g_listClient);
 
-                    printf("%s : _8_ pthread_mutex_lock()\n",__FUNCTION__ );
-
-                    sizeList = tq_size(&g_listClient);
-
-                    printf("%s : _9_  tq_size(&g_listClient)=%d\n",
-                            __FUNCTION__, sizeList);
+                printf("%s : _9_  tq_size(&g_listClient)=%d\n",
+                        __FUNCTION__, sizeList);
 
 
-                    tq_lock(&g_listClient);
+                tq_lock(&g_listClient);
 
-                    // insert
-                    pItem = tq_insertTail(&g_listClient);
+                // insert
+                pItem = tq_insertTail(&g_listClient);
 
 
-                    pData = (sData_t*)pItem->pData;
+                pData = (sData_t*)pItem->pData;
 
-                    pData->fd = sock_srv_write ;
+                pData->fd = sock_srv_write ;
 
-                    tq_unlock(&g_listClient);
+                tq_unlock(&g_listClient);
 
-                    result = pthread_cond_signal(&g_Condition);
+                pcond_signal(&g_Condition);
 
-                    sizeList = tq_size(&g_listClient);
-                    printf("%s : _10_  tq_size(&g_listClient)=%d\n",
-                            __FUNCTION__, sizeList);
-                }
 
-                pthread_mutex_unlock(&g_MutexCondition);
+                sizeList = tq_size(&g_listClient);
+                printf("%s : _10_  tq_size(&g_listClient)=%d\n",
+                        __FUNCTION__, sizeList);
+
+                pcond_unlock(&g_Condition);
 
                 sizeList = tq_size(&g_listClient);
 
@@ -505,118 +839,302 @@ static void* threadfunct_srv_bind(void* a_pArg)
     return (void*)0;
 
 }
+char * getClientName(const char * a_strID ,char* a_cli_srvname)
+{
+    snprintf(a_cli_srvname,NAME_MAX-50,"%s_%s",CLI_GETDATE,a_strID);
 
-static int start_client()
+    return a_cli_srvname;
+}
+
+
+int clientReadData(const sRequest_t  *a_pRequest,sResponse_t *a_pResponse)
+{
+    int result      = 0;
+    int sizeBuffer  = 0;
+    int sock_client = -1;
+    //    int sock_server = -1;
+
+    printf("%s_1 : \n",__FUNCTION__ );
+
+    if(( !a_pRequest) || (!a_pResponse))
+    {
+        result = EINVAL;
+    }
+
+    if( 0 == result)
+    {
+        unlink(a_pRequest->clientname);
+
+        result = openBindConnect(a_pRequest->clientname,SRV_GETDATE,&sock_client);
+
+        printf("%s_3 : openBindConnect(%s,%d) result=%d \n",
+                __FUNCTION__ ,a_pRequest->clientname,sock_client,result);
+    }
+
+    //    if( 0 == result)
+    //    {
+    //        close(sock_client);
+    //
+    //        result = openConnect(a_pRequest->clientname,&sock_client);
+    //
+    //        printf("%s_32 : openBind(%s,%d) result=%d \n",
+    //                __FUNCTION__ ,a_pRequest->clientname,sock_client,result);
+    //
+    //    }
+
+    if( 0 == result)
+    {
+        sizeBuffer = strlen(a_pRequest->clientname) + 1;
+        //        result = write(sock_server,a_pRequest,sizeBuffer);
+        result = write(sock_client,a_pRequest,sizeBuffer);
+
+        printf("%s_4 : write(%d,%d) result=%d errno=%d %s\n",
+                __FUNCTION__ ,sock_client,sizeBuffer,result,
+                errno , strerror(errno));
+        if( result >= 0)
+            result = 0;
+        else
+            result = -1;
+    }
+
+    if( 0 == result)
+    {
+        //poll
+        result = read(sock_client,a_pResponse,sizeof(sResponse_t));
+
+        printf("%s_7 : read(%d,%lu) result=%d \n",
+                __FUNCTION__ ,sock_client,sizeof(sResponse_t),result);
+
+        if( -1 == result )
+            result = errno;
+        else
+            result = 0;
+    }
+
+    close(sock_client);
+    //    close(sock_server);
+
+    return result;
+}
+static int startClient(int argc, char *argv[])
 {
     int result = 0;
 
-//    result = openConnect(SRV_GETDATE,&sock_cli_write);
-//
-//    if( -1 != result )
-//    {
-//        result = openBind(CLI_GETDATE,&sock_cli_read);
-//
-//        if( 0 != result )
-//        {
-//            close(sock_cli_write);
-//        }
-//    }
+    sRequest_t  request     = {0};
+    sResponse_t response    = {0};
+
+    getClientName(argv[2],request.clientname);
+
+    do{
+        printf("%s_1 : type any key to continue \n",__FUNCTION__);
+
+        getchar();
+
+        memset(&response,0,sizeof(sResponse_t ));
+
+        result = clientReadData(&request,&response);
+        if ( 0 == result )
+        {
+            printf("%s : clientReadData()=%d  date=%ld.%ld \n",
+                    __FUNCTION__,result,
+                    response.date.tv_sec,
+                    response.date.tv_nsec);
+        }
+        else
+        {
+            printf("%s : error clientReadData()=%d %s \n",
+                    __FUNCTION__,result,strerror(result));
+
+        }
+
+
+    }while(1);
+
+    return result;
+}
+//*******************************************
+//* tst cli 1
+//*******************************************
+static int startClient1(int argc, char *argv[])
+{
+    int result = 0;
+    //    int curchar = 0;
+
+    //    char buffer[PATH_MAX];
+    //    char pBuffer = 0;
+
+    //char cli_srvname[PATH_MAX] = {0};
+
+    //    char bufferWrite[PATH_MAX];
+    //    char bufferRead[PATH_MAX];
+    int sizeBuffer = 0;
+
+
+    // int sock_client_bind = -1;
+    int sock_client = -1;
+    int sock_server = -1;
+
+
+
+    /* sock_srv = openconnect(srvname)
+     *
+     * sock_client = openbind(cli_name)
+     *
+     *  write(sock_srv,request)
+     *  read(sock_client,response)
+     *
+     * close(sock_srv)
+     * close(sock_client)
+     */
+
+    sRequest_t  request     = {0};
+    sResponse_t response    = {0};
+    //    struct sockaddr_un client_address = {0};
+    //    unsigned int       client_address_len = sizeof(client_address);;
+
+    getClientName(argv[2],request.clientname);
+
+
+    do{
+        printf("%s_1 : type any key to continue \n",__FUNCTION__);
+
+        getchar();
+
+        sock_client  = -1;
+        sock_server = -1;
+
+        //        result = openBind(SRV_GETDATE,&sock_server);
+        result = openConnect(SRV_GETDATE,&sock_server);
+
+        printf("%s_2 : openBind(%s,%d) result=%d \n",
+                __FUNCTION__ ,SRV_GETDATE,sock_server,result);
+
+        unlink(request.clientname);
+        result = openBind(request.clientname,&sock_client);
+
+        printf("%s_3 : openBind(%s,%d) result=%d \n",
+                __FUNCTION__ ,SRV_GETDATE,sock_client,result);
+
+        //        result = listen(sock_client_bind, 1);
+        //        printf("%s_4 : listen(%d,1) result=%d errno=%d %s\n",
+        //                __FUNCTION__ ,sock_client_bind,result,
+        //                errno , strerror(errno));
+        //
+        //        sock_client = accept(sock_client_bind,
+        //                (struct sockaddr *)&client_address, &client_address_len);
+        //
+        //        printf("%s_5 : accept(%d) result=%d errno=%d %s\n",
+        //                __FUNCTION__ ,sock_client_bind,
+        //                result,errno , strerror(errno));
+
+        sizeBuffer = strlen(request.clientname) + 1;
+        result = write(sock_server,&request,sizeBuffer);
+
+        printf("%s_6 : write(%d,%d) result=%d errno=%d %s\n",
+                __FUNCTION__ ,sock_server,sizeBuffer,result,
+                errno , strerror(errno));
+
+        result = read(sock_client,&response,sizeof(sResponse_t));
+
+        printf("%s_7 : read(%d,%lu) result=%d \n",
+                __FUNCTION__ ,sock_client,sizeof(sResponse_t),result);
+
+        close(sock_client);
+        close(sock_server);
+
+        printf("read_%s : %ld.%ld \n",
+                argv[2],
+                response.date.tv_sec,
+                response.date.tv_nsec);
+
+    }while(1);
 
 
     return result;
 }
 
 
+int funcCB_srv_getdate(const sRequest_t  *a_pRequest,sResponse_t *a_pResponse)
+{
+    int result = 0;
 
+    result = clock_gettime(CLOCK_MONOTONIC_RAW,&a_pResponse->date);
+
+    printf("%s : clock_gettime()=%d  date=%ld.%ld \n",
+            __FUNCTION__,result,a_pResponse->date.tv_sec,a_pResponse->date.tv_nsec);
+
+    return result;
+}
+
+int start_Server(char * a_srvname)
+{
+    int result = 0;
+
+
+
+    //sThread_t srv_bind    = {0};
+    sThread_t srv_job     = {0};
+
+    strncpy(srv_job.cliname,a_srvname,NAME_MAX-1);
+    srv_job.pFuction = funcCB_srv_getdate;
+
+    //    result =  pthread_create(&srv_bind.pthreadID,
+    //            NULL,
+    //            &threadfunct_srv_bind,
+    //            (void*)&srv_bind);
+    //
+    //    sleep(1);
+
+
+    result =  pthread_create(&srv_job.pthreadID,
+            NULL,
+            &threadfunct_srv_job,
+            (void*)&srv_job);
+
+
+    //    pthread_join(srv_bind.pthreadID,0);
+
+    pthread_join(srv_job.pthreadID,0);
+
+    return result;
+}
+
+static void print_usage(char* argv0)
+{
+    fprintf(stderr,"\n syntaxe error : %s [cmd] [ID] \n",argv0);
+    fprintf(stderr," [cmd] : cli ID\n");
+    fprintf(stderr," [cmd] : srv \n");
+    fprintf(stderr," [ID] : 1, 2 ,3. ... \n\n");
+
+}
 int main_socket(int argc, char *argv[])
 {
     int result = 0;
 
-    char buffer[PATH_MAX];
-    char pBuffer = 0;
+    pcond_init(&g_Condition);
 
-    char bufferWrite[PATH_MAX];
-    char bufferRead[PATH_MAX];
-    int sizeBuffer = 0;
-
-    pthread_t pthreadID_srv_bind    = 0;
-    pthread_t pthreadID_srv_job     = 0;
-    pthread_t pthreadID_client      = 0;
-
-
-    pthread_mutexattr_t attrib;
-
-    pthread_mutexattr_init(&attrib);
-    pthread_mutexattr_settype(&attrib, PTHREAD_MUTEX_DEFAULT);
-    pthread_mutex_init(& g_MutexCondition,&attrib);
-    pthread_mutexattr_destroy(&attrib);
-
-
-//    show_signals(getmask());
-//    exit(0);
-
-    result =  pthread_create(&pthreadID_srv_bind,
-            NULL,
-            &threadfunct_srv_bind,
-            0);
-
-    //    threadfunct_start_server(0);
-
-    sleep(1);
-
-    result =  pthread_create(&pthreadID_srv_job,
-            NULL,
-            &threadfunct_srv_job,
-            0);
-
-    sleep(1);
-
-//    result = start_client();
-
-    int curchar = 0;
-
-    do{
-        printf("%s : type any key to continue \n",__FUNCTION__);
-        //fgets(buffer,2,stdin);
-//        do{
-//            //curchar = getchar();
-//            errno = 0;
-//            pBuffer = fgets(buffer,2,stdin);
-//
-//        }while(curchar != '\n');
-
-        //errno = 0;
-        //pBuffer = fgets(buffer,2,stdin);
-
-        curchar = getchar();
-//        read(0,buffer,1);
-
-
-        sock_cli_write = 0;
-
-        result = openConnect(SRV_GETDATE,&sock_cli_write);
-
-        printf("%s : openConnect(%s,%d)=%d \n",
-                __FUNCTION__,SRV_GETDATE,sock_cli_write, result);
-
-    close(sock_cli_write);
-
-//        strncpy(bufferWrite,CLI_GETDATE,PATH_MAX-1);
-//        sizeBuffer = strlen(CLI_GETDATE);
-//        result = write(sock_cli_write,bufferWrite,sizeBuffer);
-//
-//        memset(bufferRead,0,sizeof(bufferRead));
-//        result = read(sock_cli_read,bufferRead,PATH_MAX-1);
-//
-//        struct timespec *pTS = (struct timespec *)bufferRead;
-//
-//        printf("read =%d  %ld.%ld \n",
-//                result, pTS->tv_sec,pTS->tv_nsec);
-
-
-    }while(1);
-
-
+    if( argc > 1 )
+    {
+        // SERVER
+        if( 0 == strcmp(argv[1],"srv")  )
+        {
+            result = start_Server(SRV_GETDATE);
+        }
+        else if( 0 == strcmp(argv[1],"cli")  )
+        {
+            result = startClient(argc, argv);
+        }
+        else
+        {
+            print_usage(argv[0]);
+            result = -1;
+        }
+    }
+    else
+    {
+        print_usage(argv[0]);
+        result = -1;
+    }
 
     return result;
 }
