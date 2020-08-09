@@ -12,6 +12,7 @@
 #include <errno.h>
 #include <string.h>
 #include <limits.h>
+#include <math.h>
 
 #include <fcntl.h>           /* Pour les constantes O_* */
 #include <sys/stat.h>        /* Pour les constantes des modes */
@@ -24,7 +25,7 @@
 
 
 #include "apisyslog.h"
-#include "utilstools.h"
+#include "utilstools_network.h"
 
 #include "libmsg_int.h"
 #include "libmsg.h"
@@ -80,6 +81,7 @@ int libmsg_cli_getdata(sDataService_t *a_pDataService)
 
     if( 0 == result)
     {
+        TRACE_DBG1(" _41 : read(%d,%lu)",sock_client,sizeof(sResponse_t),result);
         result = read(sock_client,&a_pDataService->response,sizeof(sResponse_t));
 
         TRACE_DBG1(" _5 : read(%d,%lu) result=%d ",
@@ -107,6 +109,9 @@ static void * libmsg_srv_threadFunction(void * a_pArg)
     int             result          = 0;
 
     sDataThreadCtx_t *pContext = (sDataThreadCtx_t *)a_pArg;
+
+    sRequest_t  request     = {0};
+    sResponse_t response    = {0};
 
     int sock_srv_read  = -1;
 
@@ -139,14 +144,14 @@ static void * libmsg_srv_threadFunction(void * a_pArg)
 
             if( 0 == result)
             {
-                memset(&pContext->dataService.request,0,sizeof(sRequest_t));
-                memset(&pContext->dataService.response,0,sizeof(sResponse_t));
+                memset(&request,0,sizeof(sRequest_t));
+                memset(&response,0,sizeof(sResponse_t));
 
                 TRACE_DBG1("_31_ : before read(%d,%s) ",sock_srv_read,pContext->dataService.filenameServer);
                 //*******************************************************
                 // read input
                 //
-                result = read(sock_srv_read,&pContext->dataService.request,sizeof(sRequest_t));
+                result = read(sock_srv_read,&request,sizeof(sRequest_t));
 
                 TRACE_DBG1("_4_ : read(%d,%s) result=%d ",
                         sock_srv_read,pContext->dataService.filenameServer,result);
@@ -160,24 +165,35 @@ static void * libmsg_srv_threadFunction(void * a_pArg)
                 else
                 {
                     result = pContext->dataService.pFunctCB(
-                            &pContext->dataService.request,
-                            &pContext->dataService.response);
+                            &request,
+                            &response);
+                    TRACE_DBG1("_42_ : pContext->dataService.pFunctCB()=%d ",result);
                 }
             }
             if( 0 == result)
             {
-                result = net_ConnectSocketUnix(sock_srv_read,pContext->dataService.request.filenameClient);
+                result = net_ConnectSocketUnix(sock_srv_read,request.filenameClient);
+                TRACE_DBG1("_43_ : net_ConnectSocketUnix(%d;%s)=%d ",
+                        sock_srv_read,request.filenameClient,result);
             }
             if( 0 == result )
             {
                 //*******************************************************
                 // write data to ouput socket
-                result = write(sock_srv_read,&pContext->dataService.response,sizeof(sResponse_t));
-
+                result = write(sock_srv_read,&response, max(sizeof(sResponse_t),response.header.datasize));
                 TRACE_DBG1("_5_ : write(%d) result=%d errno=%d %s ",sock_srv_read,
                         result,errno,strerror(errno) );
 
-                result = 0;
+                if( -1 == result)
+                {
+                    TRACE_ERR("_6_ : write(%d) result=%d errno=%d %s ",sock_srv_read,
+                            result,errno,strerror(errno) );
+                    result = errno;
+                }
+                else
+                {
+                    result = 0;
+                }
             }
 
             TRACE_DBG1(" _6_ :  end loop ");
@@ -198,141 +214,6 @@ static void * libmsg_srv_threadFunction(void * a_pArg)
     return (void*)0;
 }
 
-
-
-//static void * libmsg_cli_threadFunction(void * a_pArg)
-//{
-//    int             result          = 0;
-//
-//    //    sDataThreadCtx_t *pContextt = (sDataThreadCtx_t *)a_pArg;
-//    //
-//    //    struct pollfd   fd_client   = {0};
-//    ////    struct pollfd   fd_server   = {0};
-//    //    struct mq_attr  vAttr       = {0};
-//    //
-//    //    char        msgbuffer[APISYSLOG_MSG_SIZE]   = {0};
-//    //
-//    //    char    buffRequest[1204*100];
-//    //    sRequest_t  request = {0};
-//    //    sResponse_t response= {0};
-//    //
-//    //
-//    //    mq_unlink(pContextt->dataService.filenameServer);
-//    //
-//    //    vAttr.mq_flags  = O_CLOEXEC;
-//    //    vAttr.mq_curmsgs = 1;
-//    //    vAttr.mq_maxmsg = 10;
-//    //    vAttr.mq_msgsize = HARD_MAX;
-//    //
-//    //
-//    //TRACE_DBG1("_1_")
-//    //    if(0 == result)
-//    //    {
-//    //        do{
-//    //
-//    //            memset(&request ,0,sizeof(request));
-//    //            memset(&response,0,sizeof(response));
-//    //
-//    //            //***********************************************************
-//    //            //                open client
-//    //            //***********************************************************
-//    //                TRACE_DBG1("_1_ result=0x%X",result);
-//    //
-//    //                errno = 0;
-//    //                fd_client.fd = mq_open(pContextt->dataService.request.filenameClient,
-//    //                                        O_RDONLY);
-//    //
-//    //                if( -1 == fd_client.fd )
-//    //                {
-//    //                    result = errno;
-//    //                    snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
-//    //                            "mq_open(%.50s) result=%d errno=%d %s ",
-//    //                            pContextt->dataService.request.filenameClient,
-//    //                            result , errno,strerror(errno));
-//    //                    TRACE_ERR(msgbuffer);
-//    //                }
-//    //
-//    //            TRACE_DBG1("_2_");
-//    //            //***********************************************************
-//    //            //                  POLL
-//    //            //***********************************************************
-//    //            fd_client.events = POLLIN | POLLPRI;
-//    //            fd_client.revents = 0;
-//    //
-//    //            errno = 0;
-//    //            result = poll(&fd_client,1,-1);
-//    //            TRACE_DBG1("_3_ poll=0x%X",result);
-//    //
-//    //            if ( 0 == result) // timeout
-//    //            {
-//    //                snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
-//    //                        "error poll(%d) result=%d TIMEOUT ",
-//    //                        fd_client.fd,
-//    //                        result );
-//    //                TRACE_ERR(msgbuffer);
-//    //                result = -1;
-//    //                continue;
-//    //            }
-//    //            else if ( -1 == result )
-//    //            {
-//    //                snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
-//    //                        "error poll(%d) result=%d errno=%d %s ",
-//    //                        fd_client.fd,
-//    //                        result , errno,strerror(errno));
-//    //                TRACE_ERR(msgbuffer);
-//    //            }
-//    //            else
-//    //            {
-//    //                result = 0; // to chech event
-//    //            }
-//    //
-//    //            //***********************************************************
-//    //            //                  RECEIVE DATA
-//    //            //***********************************************************
-//    //            if ( 0 == result)
-//    //            {
-//    //                TRACE_DBG1("_5_");
-//    //               //            fprintf(stderr,"_4_ ");
-//    //                memset( buffRequest,0,sizeof(buffRequest));
-//    //
-//    //                errno = 0;
-//    //                result = mq_receive(fd_client.fd,(char*)&response,
-//    //                        sizeof(response),0);
-//    //                //            fprintf(stderr,"_5_ ");
-//    //                TRACE_DBG1("_6_ result=0x%X",result);
-//    //
-//    //                if ( (0 == result) || (-1 == result))
-//    //                {
-//    //                    snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
-//    //                            "error mq_receive(%d) result=%d errno=%d %s ",
-//    //                            fd_client.fd,
-//    //                            result , errno,strerror(errno));
-//    //                    TRACE_ERR(msgbuffer);
-//    //                    continue;
-//    //                }
-//    //                else
-//    //                {
-//    //                    result = 0;
-//    //                }
-//    //
-//    //                //            printf("vClientfilename=%s ",vClientfilename);
-//    //            }
-//    //
-//    //            if( 0 == result )
-//    //            {
-//    //                TRACE_DBG1("_7_ result=0x%X",result);
-//    //                result = pContextt->dataService.pFunctCB(&request,&response);
-//    //            }
-//    //            //        fprintf(stderr,"_11_ ");
-//    //
-//    //            mq_close(fd_client.fd);
-//    //
-//    //        }while(1);
-//    //
-//    //    }// if(0 == result)
-//
-//    return (void*)0;
-//}
 //************************************************************
 //*
 //************************************************************
@@ -361,79 +242,52 @@ int libmsg_srv_register_svc(sDataThreadCtx_t *a_pDataThreadCtx)
 
     return result;
 }
-//************************************************************
-//*
-//************************************************************
-//int libmsg_cli_register_svc(sDataThreadCtx_t *a_pDataThreadCtx)
-//{
-//    int result = 0;
-//    char msgbuffer[APISYSLOG_MSG_SIZE] = {0};
-//
-//    //*****************************
-//    // create new tread for listening incomming messages
-//    //*****************************
-//    errno = 0;
-//    result =  pthread_create(&a_pDataThreadCtx->pthreadID,
-//            NULL,
-//            &libmsg_cli_threadFunction,
-//            (void*)a_pDataThreadCtx);
-//
-//    if( 0 != result )
-//    {
-//        snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
-//                ": pthread_create() error =%d %s",
-//                result,strerror(result));
-//
-//        TRACE_ERR(msgbuffer);
-//    }
-//
-//    return result;
-//}
+
 
 //***************************************************
 // return   : -1 if find
 //          :  0 if not find
 //***************************************************
-int libmsg_srv_find_registred_client(
-        sRequest_t      *a_pRequest,
-        unsigned int    a_nfds,
-        const char      *a_filenameClient)
-{
-    int result = 0;
-    int unsigned ii = 0;
-
-    if( 0 == a_nfds )
-    {
-        result = 0;
-    }
-    else
-    {
-        for(ii=0;       (ii < (MAX_POLL_FD))
-        &&  (ii <= a_nfds)
-        &&  (0 < a_nfds);
-        ii++ )
-        {
-            result = strcmp(a_pRequest->filenameClient,a_filenameClient);
-
-            if( result == 0 )
-            {
-                result = -1;
-                break;
-            }
-        }
-
-        if( 0 == result)
-        {
-            result = -1;
-        }
-        else
-        {
-            result = 0;
-        }
-    }
-
-    return result;
-}
+//int libmsg_srv_find_registred_client(
+//        sRequest_t      *a_pRequest,
+//        unsigned int    a_nfds,
+//        const char      *a_filenameClient)
+//{
+//    int result = 0;
+//    int unsigned ii = 0;
+//
+//    if( 0 == a_nfds )
+//    {
+//        result = 0;
+//    }
+//    else
+//    {
+//        for(ii=0;       (ii < (MAX_POLL_FD))
+//        &&  (ii <= a_nfds)
+//        &&  (0 < a_nfds);
+//        ii++ )
+//        {
+//            result = strcmp(a_pRequest->filenameClient,a_filenameClient);
+//
+//            if( result == 0 )
+//            {
+//                result = -1;
+//                break;
+//            }
+//        }
+//
+//        if( 0 == result)
+//        {
+//            result = -1;
+//        }
+//        else
+//        {
+//            result = 0;
+//        }
+//    }
+//
+//    return result;
+//}
 
 int libmsg_openBindConnect( const char  *a_clientFilename,
                             const char  *a_serverFilename,
