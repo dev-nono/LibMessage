@@ -28,7 +28,7 @@
 #define MQ_FILENAME "/server_time"
 
 #include <utilstools.h>
-#include "listtailqueue.h"
+#include <utilstools_listtailqueue.h>
 
 int main_socket(int argc, char *argv[]);
 

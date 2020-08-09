@@ -29,7 +29,7 @@
 //******************************************************
 //  services "server_time"
 //******************************************************
-#define SERVER_TIME             "/srvtime"
+#define SERVER_TIME             "/tmp/srvtime"
 #define SERVER_TIME_GETDATE     SERVER_TIME"."SVC_GETDATE
 #define SERVER_TIME_SETDATE     SERVER_TIME".setdate"
 #define SERVER_TIME_SIGNALDATE  SERVER_TIME".signal"
@@ -54,6 +54,7 @@ struct sRequest
     sHeader_t   header;
 
     char filenameClient[NAME_MAX];
+//    char filenameServer[NAME_MAX];
 //    char data __flexarr;    /* Name.  */
     char        data[DATA_MAX_REQUEST] ;// __flexarr;    /* Name.  */
 
@@ -107,21 +108,22 @@ struct sDataThreadCtx
 typedef struct sDataThreadCtx sDataThreadCtx_t;
 
 
-int     libmsg_cli_getdata(
-        _IN_ const char     *a_Srvname,
-        sDataService_t      *a_pDataService);
-//        const sRequest_t    *a_pRequest,
-//        sResponse_t         *a_pResponse);
+int libmsg_cli_getdata(sDataService_t *a_pDataService);
 
 int libmsg_srv_register_svc(sDataThreadCtx_t *a_pDataThreadCtx);
-int libmsg_cli_register_svc(sDataThreadCtx_t *a_pDataThreadCtx);
+//int libmsg_cli_register_svc(sDataThreadCtx_t *a_pDataThreadCtx);
 
-int libmsg_srv_find_registred_client(
-        sRequest_t      *a_pRequest,
-        unsigned int    a_nfds,
-        const char      *a_filenameClient);
+//int libmsg_srv_find_registred_client(
+//        sRequest_t      *a_pRequest,
+//        unsigned int    a_nfds,
+//        const char      *a_filenameClient);
 
+//int libmsg_resetConnectSocket(int a_socket);
+//int libmsg_ConnectSocket(int a_socket,const char* a_clientFilename);
+int libmsg_openBindConnect(const char  *a_clientFilename,
+        const char  *a_serverFilename,
+        int         *a_pSocketdescriptor);
 
-
+int libmsg_openBind(const char *a_socketFilename,int* a_pSocketdescriptor);
 
 #endif /* INC_LIBMSG_H_ */

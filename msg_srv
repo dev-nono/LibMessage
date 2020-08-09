@@ -3,8 +3,8 @@
 # set -x
 
 
-#export LD_LIBRARY_PATH=$PWD/libmessage/Debug/:$LD_LIBRARY_PATH
+#export LD_LIBRARY_PATH=$PWD/libmessage/Dunix/:$LD_LIBRARY_PATH
 
 . ./setlibpath
 
-server_time/Debug/service_time
+server_time/Dunix/service_time

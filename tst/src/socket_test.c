@@ -522,7 +522,6 @@ static void* threadfunct_srv_job(void* a_pArg)
 
 
 
-    //int sock_srv_write = -1;
     int sock_srv_read  = -1;
     struct sockaddr_un sockaddr = {0};
 
@@ -852,7 +851,6 @@ int clientReadData(const sRequest_t  *a_pRequest,sResponse_t *a_pResponse)
     int result      = 0;
     int sizeBuffer  = 0;
     int sock_client = -1;
-    //    int sock_server = -1;
 
     printf("%s_1 : \n",__FUNCTION__ );
 

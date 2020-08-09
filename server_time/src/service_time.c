@@ -262,8 +262,8 @@ int main(void)
     //    result = libmessage_register_service_time( SERVER_TIME_SIGNAL,  libmessage_cbfcnt_signal,     libmessage_cbfcnt_signal);
 
     result = libmsg_srvtime_srv_register_svc_getdate(libmsg_srv_cbfcnt_getdate);
-    sleep(1);
-    result = libmsg_srvtime_srv_register_svc_signal(libmsg_srv_cbfcnt_signaldate);
+//    sleep(1);
+//    result = libmsg_srvtime_srv_register_svc_signal(libmsg_srv_cbfcnt_signaldate);
     sleep(1);
     result = libmsg_srvtime_srv_wait();
 

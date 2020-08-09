@@ -41,10 +41,6 @@ static sDataThreadCtx_t g_ThreadCtx_srv_signaldateNotify     = {0};
 
 
 
-int libmsg_srvtime_cli_getdate1( _IN_ const char* a_UniqID, _OUT_ double *a_Date)
-{
-
-}
 //************************************************************
 //  client side
 //      _OUT_ double *a_pDate : buffer data output
@@ -52,25 +48,25 @@ int libmsg_srvtime_cli_getdate1( _IN_ const char* a_UniqID, _OUT_ double *a_Date
 //          SUCCESS    0
 //          EINVAL          22  Invalid argument
 //************************************************************
-int libmsg_srvtime_cli_getdate( _IN_ const char* a_UniqID, _OUT_ double *a_Date)
+int libmsg_srvtime_cli_getdate(_OUT_ double *a_Date)
 {
     int     result                  = 0;
     char msgbuffer[APISYSLOG_MSG_SIZE] = {0};
+    char ClientFilename[NAME_MAX];
 
     sDataService_t      dataService;
-
-//    sRequest_t          *pRequest  = 0;
-//    sResponse_t         *pResponse = 0;
     sGetdateResponse_t  *pResponse_getdate  = 0;
 
     memset(&dataService,0,sizeof(dataService));
 
-    result = getMqClientname(a_UniqID,SVC_GETDATE,dataService.request.filenameClient);
+    getUniqname("/tmp",SVC_GETDATE ,ClientFilename);
+
+    strncpy(dataService.request.filenameClient,ClientFilename,NAME_MAX-1);
+    strncpy(dataService.filenameServer,SERVER_TIME_GETDATE,NAME_MAX-1);
 
     if( 0 == result )
     {
-        result = libmsg_cli_getdata( SERVER_TIME_GETDATE,
-                &dataService);
+        result = libmsg_cli_getdata(&dataService);
     }
 
     if( 0 == result )
@@ -164,7 +160,7 @@ int libmsg_srvtime_cli_signaldate( const char* a_UniqID,
 
         time_cnv_double_to_ts(a_Date,&pRequestData->timespesc);
 
-        result = libmsg_cli_getdata( SERVER_TIME_SIGNALDATE,&dataServiceRequest);
+//        result = libmsg_cli_getdata( SERVER_TIME_SIGNALDATE,&dataServiceRequest);
     }
 
     if( 0 == result )
@@ -233,7 +229,7 @@ int libmsg_srvtime_srv_wait()
 
     result = pthread_join(g_ThreadCtx_srv_svc_getdate.pthreadID,0);
 
-    result = pthread_join(g_ThreadCtx_srv_svc_Signaldate.pthreadID,0);
+//    result = pthread_join(g_ThreadCtx_srv_svc_Signaldate.pthreadID,0);
 
     //*****************************
     // LIBMESSAGE_ID_END

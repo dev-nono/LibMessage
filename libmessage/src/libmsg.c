@@ -15,146 +15,88 @@
 
 #include <fcntl.h>           /* Pour les constantes O_* */
 #include <sys/stat.h>        /* Pour les constantes des modes */
-#include <mqueue.h>
 #include <pthread.h>
 #include <signal.h>
 
+#include <sys/types.h>          /* Consultez NOTES */
+#include <sys/socket.h>
+#include <sys/un.h>
+
+
 #include "apisyslog.h"
+#include "utilstools.h"
 
 #include "libmsg_int.h"
 #include "libmsg.h"
 
-//#include "libmessage_int.h"
-//#include "libmessage.h"
 
-
-int libmsg_cli_getdata(
-        _IN_ const  char        *a_Srvname,
-//            const   sRequest_t  *a_pRequest,
-//                    sResponse_t *a_pResponse
-        sDataService_t      *a_pDataService)
+int libmsg_cli_getdata(sDataService_t *a_pDataService)
 {
-    int result = 0;
-    int vLenReceive = 0;
-    struct mq_attr  vAttr   = {0};
+    int result      = 0;
+    int sizeBuffer  = 0;
+    int sock_client = -1;
 
-    struct pollfd fd_client = {0};
-    struct pollfd fd_server = {0};
+    TRACE_DBG1(" _1 :");
 
-    struct timespec ts_abs_timeout = {0};
-    struct timespec ts_timeout = {0,1e9 / 1000 * 10}; // 10ms
-
-    char        msgbuffer[APISYSLOG_MSG_SIZE]   = {0};
-
-//    sRequest_t  *a_pDataService->request = &a_pDataService->request;
-    //sResponse_t *a_pDataService->response = a_pDataService->response;
-
-
-    vAttr.mq_flags  = O_CLOEXEC;
-    vAttr.mq_curmsgs = 1;
-    vAttr.mq_maxmsg = 1;
-    vAttr.mq_msgsize = HARD_MAX;
-
-    //**********************************************************
-    // open mq server
-    //**********************************************************
-    errno = 0;
-    fd_server.fd = mq_open(a_Srvname,O_WRONLY);
-                //,S_IRWXO | S_IRWXG | S_IRWXU ,&vAttr);
-
-    if( -1 == fd_server.fd )
+    if((        !a_pDataService
+            ||  0 == *a_pDataService->filenameServer
+            ||  0 == *a_pDataService->request.filenameClient))
     {
-        fprintf(stderr,"mq_open(%s) result=%d errno=%d %s \n",
-                a_Srvname,result , errno,strerror(errno));
+        result = EINVAL;
     }
 
-    if( 0 == result )
+    if( 0 == result)
     {
-        //**********************************************************
-        // open mq client
-        //**********************************************************
-        mq_unlink(a_pDataService->request.filenameClient);
+        unlink(a_pDataService->request.filenameClient);
 
-        errno = 0;
-        fd_client.fd = mq_open(a_pDataService->request.filenameClient,
-                O_CREAT | O_RDONLY , S_IRWXO | S_IRWXG | S_IRWXU ,&vAttr);
-        if( -1 == fd_client.fd )
-        {
-            fprintf(stderr,"mq_open(%s) result=%d errno=%d %s \n",
-                    a_pDataService->request.filenameClient,
-                    result , errno,strerror(errno));
-        }
+        result = libmsg_openBindConnect(   a_pDataService->request.filenameClient,
+                a_pDataService->filenameServer,
+                &sock_client);
+
+        TRACE_DBG1(" _3 : openBindConnect(%s,%s,%d) result=%d ",
+                a_pDataService->request.filenameClient,
+                a_pDataService->filenameServer,sock_client,result);
     }
-    if( 0 == result )
+    if( 0 == result)
     {
-        fushMessageQueue( fd_client.fd);
-    }
-    // prepare msg
+        sizeBuffer = sizeof(sRequest_t);
+        result = write(sock_client,&a_pDataService->request,sizeBuffer);
 
-    if( 0 == result )
-    {
-        timeradd_real(ts_timeout,&ts_abs_timeout);
-        // send msg to server
-//        result = mq_send(fd_server.fd, (char*)a_pDataService->request,sizeof(sRequest_t),0);
-        result = mq_timedsend(fd_server.fd,
-                (char*)&a_pDataService->request,
-                sizeof(sRequest_t),
-                0,
-                &ts_abs_timeout);
-
-        if( 0 != result)
+        TRACE_DBG1("_4 : write(%d,%d) result=%d",
+                sock_client,sizeBuffer,result);
+        if( -1 == result )
         {
-            TRACE_ERR("mq_send(%d) result=%d errno=%d %s \n",
-                    fd_server.fd,result , errno,strerror(errno));
-        }
-    }
-
-    if( 0 == result )
-    {
-        memset(&a_pDataService->response,0,sizeof(sResponse_t));
-
-        ts_timeout.tv_sec = 0;
-        ts_timeout.tv_nsec = 1e9 / 1000 * 20 ;// 20ms
-
-        timeradd_real(ts_timeout,&ts_abs_timeout);
-
-        errno=0;
-        vLenReceive =  mq_timedreceive(fd_client.fd,
-                (char*)&a_pDataService->response,
-                sizeof(sResponse_t),
-                0U,
-                &ts_abs_timeout);
-
-        if( -1 == vLenReceive )
-        {
-            TRACE_ERR("mq_timedreceive(%d) vLenReceive=%d result=%d errno=%d %s \n",
-                    fd_server.fd,vLenReceive,
-                    result , errno,strerror(errno));
-
-            result = errno;
-        }
-        else if( 0 == vLenReceive )
-        {
-            TRACE_ERR("mq_timedreceive(%d) vLenReceive=%d result=%d errno=%d %s \n",
-                    fd_server.fd,result ,
-                    vLenReceive,errno,strerror(errno));
+            TRACE_DBG1("_5 : write(%d,%d) result=%d errno=%d %s",
+                    sock_client,sizeBuffer,result,
+                    errno , strerror(errno));
 
             result = errno;
         }
         else
         {
-            TRACE_DBG2("mq_timedreceive(%d) vLenReceive=%d result=%d errno=%d %s \n",
-                    fd_server.fd,vLenReceive,
-                    result , errno,strerror(errno));
-
-            result = errno;
             result = 0;
-
         }
     }
 
-    mq_close(fd_client.fd);
-    mq_close(fd_server.fd);
+    if( 0 == result)
+    {
+        result = read(sock_client,&a_pDataService->response,sizeof(sResponse_t));
+
+        TRACE_DBG1(" _5 : read(%d,%lu) result=%d ",
+                sock_client,sizeof(sResponse_t),result);
+
+        if( -1 == result )
+        {
+            TRACE_DBG1("_6 : read(%d) result=%d errno=%d %s",
+                    sock_client,result,errno , strerror(errno));
+            result = errno;
+        }
+        else
+            result = 0;
+    }
+
+    close(sock_client);
+    unlink(a_pDataService->request.filenameClient);
 
     return result;
 }
@@ -164,310 +106,233 @@ static void * libmsg_srv_threadFunction(void * a_pArg)
 {
     int             result          = 0;
 
-    sDataThreadCtx_t *pContex = (sDataThreadCtx_t *)a_pArg;
+    sDataThreadCtx_t *pContext = (sDataThreadCtx_t *)a_pArg;
 
-    struct pollfd   fd_client   = {0};
-    struct pollfd   fd_server   = {0};
-    struct mq_attr  vAttr       = {0};
+    int sock_srv_read  = -1;
 
-    char        msgbuffer[APISYSLOG_MSG_SIZE]   = {0};
+    TRACE_DBG1(" : _IN_1");
 
-    char    buffRequest[1204*100];
-    sRequest_t  request = {0};
-    sResponse_t response= {0};
+    result = unlink(pContext->dataService.filenameServer);
 
+    TRACE_DBG1(" _2_ : unlink(%s) = %d  errno=%d %s",
+            pContext->dataService.filenameServer,
+            result,errno,strerror(errno) );
 
-    mq_unlink(pContex->dataService.filenameServer);
+    result = libmsg_openBind(pContext->dataService.filenameServer,&sock_srv_read);
 
-    vAttr.mq_flags  = O_CLOEXEC;
-    vAttr.mq_curmsgs = 1;
-    vAttr.mq_maxmsg = 10;
-    vAttr.mq_msgsize = HARD_MAX;
-
-
-    //**********************************************************
-    // open mq server
-    //**********************************************************
-    errno  = 0;
-    fd_server.fd = mq_open(pContex->dataService.filenameServer,
-            O_CREAT | O_RDONLY,S_IRWXO | S_IRWXG | S_IRWXU ,&vAttr);
-
-    fprintf(stderr,"_1_ \n");
-
-    if( -1 == fd_server.fd )
+    if( 0 != result)
     {
-        result = errno;
-        snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
-                "mq_open(%s) result=%d errno=%d %s \n",
-                pContex->dataService.filenameServer,
-                result , errno,strerror(errno));
-        fprintf(stderr,"%s : %s \n",__FUNCTION__, msgbuffer);
-        TRACE_ERR(msgbuffer);
+        TRACE_DBG1("%s : _3_ openBind(%s) = %d sock_srv_read=%d errno=%d %s",
+                __FUNCTION__,pContext->dataService.filenameServer,
+                result,sock_srv_read,errno,strerror(errno) );
     }
 
-TRACE_DBG1("_1_")
-    if(0 == result)
+    if( 0 == result)
     {
-        do{
-
-            memset(&request ,0,sizeof(request));
-            memset(&response,0,sizeof(response));
-
-            TRACE_DBG1("_2_");
-            //***********************************************************
-            //                  POLL
-            //***********************************************************
-            fd_server.events = POLLIN | POLLPRI;
-            fd_server.revents = 0;
-
-            errno = 0;
-            result = poll(&fd_server,1,-1);
-            TRACE_DBG1("_3_ poll=0x%X",result);
-
-            if ( 0 == result) // timeout
+        do
+        {
+            if( 0 == result)
             {
-                snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
-                        "error poll(%d) result=%d TIMEOUT \n",
-                        fd_server.fd,
-                        result );
-                TRACE_ERR(msgbuffer);
-                result = -1;
-                continue;
-            }
-            else if ( -1 == result )
-            {
-                snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
-                        "error poll(%d) result=%d errno=%d %s \n",
-                        fd_server.fd,
-                        result , errno,strerror(errno));
-                TRACE_ERR(msgbuffer);
-            }
-            else
-            {
-                result = 0; // to chech event
+                result = net_resetConnectSocket(sock_srv_read);
+//                usleep(1e6/1000); //1ms
             }
 
-            //***********************************************************
-            //                  RECEIVE DATA
-            //***********************************************************
-            if ( 0 == result)
+            if( 0 == result)
             {
-                TRACE_DBG1("_4_");
-               //            fprintf(stderr,"_4_ \n");
-                memset( buffRequest,0,sizeof(buffRequest));
+                memset(&pContext->dataService.request,0,sizeof(sRequest_t));
+                memset(&pContext->dataService.response,0,sizeof(sResponse_t));
 
-                errno = 0;
-                result = mq_receive(fd_server.fd, buffRequest,
-                        sizeof(buffRequest),0);
-                //            fprintf(stderr,"_5_ \n");
-                TRACE_DBG1("_5_ result=0x%X",result);
+                TRACE_DBG1("_31_ : before read(%d,%s) ",sock_srv_read,pContext->dataService.filenameServer);
+                //*******************************************************
+                // read input
+                //
+                result = read(sock_srv_read,&pContext->dataService.request,sizeof(sRequest_t));
 
-                if ( (0 == result) || (-1 == result))
+                TRACE_DBG1("_4_ : read(%d,%s) result=%d ",
+                        sock_srv_read,pContext->dataService.filenameServer,result);
+
+                if( -1 == result )
                 {
-                    snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
-                            "error mq_receive(%d) result=%d errno=%d %s \n",
-                            fd_server.fd,
-                            result , errno,strerror(errno));
-                    TRACE_ERR(msgbuffer);
-                    continue;
+                    TRACE_ERR(" : read(%d)=%d errn=%d %s ",
+                            sock_srv_read,result,errno,strerror(errno) );
+                    result = errno;
                 }
                 else
                 {
-                    result = 0;
+                    result = pContext->dataService.pFunctCB(
+                            &pContext->dataService.request,
+                            &pContext->dataService.response);
                 }
-
-                //            printf("vClientfilename=%s \n",vClientfilename);
             }
-            //***********************************************************
-            //                open client
-            //***********************************************************
-            if ( 0 == result)
+            if( 0 == result)
             {
-                TRACE_DBG1("_6_ result=0x%X",result);
-                memcpy(&request, buffRequest,sizeof(request));
-
-                errno = 0;
-                fd_client.fd = mq_open(request.filenameClient,O_WRONLY);
-
-                if( -1 == fd_client.fd )
-                {
-                    result = errno;
-                    snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
-                            "mq_open(%.50s) result=%d errno=%d %s \n",
-                            request.filenameClient,
-                            result , errno,strerror(errno));
-                    TRACE_ERR(msgbuffer);
-                }
+                result = net_ConnectSocketUnix(sock_srv_read,pContext->dataService.request.filenameClient);
             }
             if( 0 == result )
             {
-                TRACE_DBG1("_7_ result=0x%X",result);
+                //*******************************************************
+                // write data to ouput socket
+                result = write(sock_srv_read,&pContext->dataService.response,sizeof(sResponse_t));
 
-                result = pContex->dataService.pFunctCB(&request,&response);
+                TRACE_DBG1("_5_ : write(%d) result=%d errno=%d %s ",sock_srv_read,
+                        result,errno,strerror(errno) );
 
-               // send msg to server
-                errno = 0;
-                result = mq_send(fd_client.fd, (char*)&response,
-                        response.header.datasize,0);
-
-                TRACE_DBG2("_8_mq_send()=%d size=%d errno=%u %s\n",
-                        result,
-                        response.header.datasize,
-                        errno,strerror(errno));
-
-                if ( 0 != result)
-                {
-                    snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
-                            "error mq_send() result=%d errno=%d %s \n",
-                            result , errno,strerror(errno));
-                    TRACE_ERR(msgbuffer);
-                }
+                result = 0;
             }
-            //        fprintf(stderr,"_11_ \n");
 
-            mq_close(fd_client.fd);
+            TRACE_DBG1(" _6_ :  end loop ");
+
+            result = 0;
+
+            //        pcond_unlock(&g_Condition);
+            //
+            //        sizeList = tq_size(&g_listClient);
+            //        printf("%s _8_ : sizeList=%d ",__FUNCTION__ ,sizeList);
 
         }while(1);
 
-    }// if(0 == result)
+        close(sock_srv_read);
+
+    }// // 0 = openBind(SRV_GETDATE,&sock_srv_read);
 
     return (void*)0;
 }
 
-static void * libmsg_cli_threadFunction(void * a_pArg)
-{
-    int             result          = 0;
-
-    sDataThreadCtx_t *pContex = (sDataThreadCtx_t *)a_pArg;
-
-    struct pollfd   fd_client   = {0};
-//    struct pollfd   fd_server   = {0};
-    struct mq_attr  vAttr       = {0};
-
-    char        msgbuffer[APISYSLOG_MSG_SIZE]   = {0};
-
-    char    buffRequest[1204*100];
-    sRequest_t  request = {0};
-    sResponse_t response= {0};
 
 
-    mq_unlink(pContex->dataService.filenameServer);
-
-    vAttr.mq_flags  = O_CLOEXEC;
-    vAttr.mq_curmsgs = 1;
-    vAttr.mq_maxmsg = 10;
-    vAttr.mq_msgsize = HARD_MAX;
-
-
-TRACE_DBG1("_1_")
-    if(0 == result)
-    {
-        do{
-
-            memset(&request ,0,sizeof(request));
-            memset(&response,0,sizeof(response));
-
-            //***********************************************************
-            //                open client
-            //***********************************************************
-                TRACE_DBG1("_1_ result=0x%X",result);
-
-                errno = 0;
-                fd_client.fd = mq_open(pContex->dataService.request.filenameClient,
-                                        O_RDONLY);
-
-                if( -1 == fd_client.fd )
-                {
-                    result = errno;
-                    snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
-                            "mq_open(%.50s) result=%d errno=%d %s \n",
-                            pContex->dataService.request.filenameClient,
-                            result , errno,strerror(errno));
-                    TRACE_ERR(msgbuffer);
-                }
-
-            TRACE_DBG1("_2_");
-            //***********************************************************
-            //                  POLL
-            //***********************************************************
-            fd_client.events = POLLIN | POLLPRI;
-            fd_client.revents = 0;
-
-            errno = 0;
-            result = poll(&fd_client,1,-1);
-            TRACE_DBG1("_3_ poll=0x%X",result);
-
-            if ( 0 == result) // timeout
-            {
-                snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
-                        "error poll(%d) result=%d TIMEOUT \n",
-                        fd_client.fd,
-                        result );
-                TRACE_ERR(msgbuffer);
-                result = -1;
-                continue;
-            }
-            else if ( -1 == result )
-            {
-                snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
-                        "error poll(%d) result=%d errno=%d %s \n",
-                        fd_client.fd,
-                        result , errno,strerror(errno));
-                TRACE_ERR(msgbuffer);
-            }
-            else
-            {
-                result = 0; // to chech event
-            }
-
-            //***********************************************************
-            //                  RECEIVE DATA
-            //***********************************************************
-            if ( 0 == result)
-            {
-                TRACE_DBG1("_5_");
-               //            fprintf(stderr,"_4_ \n");
-                memset( buffRequest,0,sizeof(buffRequest));
-
-                errno = 0;
-                result = mq_receive(fd_client.fd,(char*)&response,
-                        sizeof(response),0);
-                //            fprintf(stderr,"_5_ \n");
-                TRACE_DBG1("_6_ result=0x%X",result);
-
-                if ( (0 == result) || (-1 == result))
-                {
-                    snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
-                            "error mq_receive(%d) result=%d errno=%d %s \n",
-                            fd_client.fd,
-                            result , errno,strerror(errno));
-                    TRACE_ERR(msgbuffer);
-                    continue;
-                }
-                else
-                {
-                    result = 0;
-                }
-
-                //            printf("vClientfilename=%s \n",vClientfilename);
-            }
-
-            if( 0 == result )
-            {
-                TRACE_DBG1("_7_ result=0x%X",result);
-
-                result = pContex->dataService.pFunctCB(&request,&response);
-            }
-            //        fprintf(stderr,"_11_ \n");
-
-            mq_close(fd_client.fd);
-
-        }while(1);
-
-    }// if(0 == result)
-
-    return (void*)0;
-}
+//static void * libmsg_cli_threadFunction(void * a_pArg)
+//{
+//    int             result          = 0;
+//
+//    //    sDataThreadCtx_t *pContextt = (sDataThreadCtx_t *)a_pArg;
+//    //
+//    //    struct pollfd   fd_client   = {0};
+//    ////    struct pollfd   fd_server   = {0};
+//    //    struct mq_attr  vAttr       = {0};
+//    //
+//    //    char        msgbuffer[APISYSLOG_MSG_SIZE]   = {0};
+//    //
+//    //    char    buffRequest[1204*100];
+//    //    sRequest_t  request = {0};
+//    //    sResponse_t response= {0};
+//    //
+//    //
+//    //    mq_unlink(pContextt->dataService.filenameServer);
+//    //
+//    //    vAttr.mq_flags  = O_CLOEXEC;
+//    //    vAttr.mq_curmsgs = 1;
+//    //    vAttr.mq_maxmsg = 10;
+//    //    vAttr.mq_msgsize = HARD_MAX;
+//    //
+//    //
+//    //TRACE_DBG1("_1_")
+//    //    if(0 == result)
+//    //    {
+//    //        do{
+//    //
+//    //            memset(&request ,0,sizeof(request));
+//    //            memset(&response,0,sizeof(response));
+//    //
+//    //            //***********************************************************
+//    //            //                open client
+//    //            //***********************************************************
+//    //                TRACE_DBG1("_1_ result=0x%X",result);
+//    //
+//    //                errno = 0;
+//    //                fd_client.fd = mq_open(pContextt->dataService.request.filenameClient,
+//    //                                        O_RDONLY);
+//    //
+//    //                if( -1 == fd_client.fd )
+//    //                {
+//    //                    result = errno;
+//    //                    snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
+//    //                            "mq_open(%.50s) result=%d errno=%d %s ",
+//    //                            pContextt->dataService.request.filenameClient,
+//    //                            result , errno,strerror(errno));
+//    //                    TRACE_ERR(msgbuffer);
+//    //                }
+//    //
+//    //            TRACE_DBG1("_2_");
+//    //            //***********************************************************
+//    //            //                  POLL
+//    //            //***********************************************************
+//    //            fd_client.events = POLLIN | POLLPRI;
+//    //            fd_client.revents = 0;
+//    //
+//    //            errno = 0;
+//    //            result = poll(&fd_client,1,-1);
+//    //            TRACE_DBG1("_3_ poll=0x%X",result);
+//    //
+//    //            if ( 0 == result) // timeout
+//    //            {
+//    //                snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
+//    //                        "error poll(%d) result=%d TIMEOUT ",
+//    //                        fd_client.fd,
+//    //                        result );
+//    //                TRACE_ERR(msgbuffer);
+//    //                result = -1;
+//    //                continue;
+//    //            }
+//    //            else if ( -1 == result )
+//    //            {
+//    //                snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
+//    //                        "error poll(%d) result=%d errno=%d %s ",
+//    //                        fd_client.fd,
+//    //                        result , errno,strerror(errno));
+//    //                TRACE_ERR(msgbuffer);
+//    //            }
+//    //            else
+//    //            {
+//    //                result = 0; // to chech event
+//    //            }
+//    //
+//    //            //***********************************************************
+//    //            //                  RECEIVE DATA
+//    //            //***********************************************************
+//    //            if ( 0 == result)
+//    //            {
+//    //                TRACE_DBG1("_5_");
+//    //               //            fprintf(stderr,"_4_ ");
+//    //                memset( buffRequest,0,sizeof(buffRequest));
+//    //
+//    //                errno = 0;
+//    //                result = mq_receive(fd_client.fd,(char*)&response,
+//    //                        sizeof(response),0);
+//    //                //            fprintf(stderr,"_5_ ");
+//    //                TRACE_DBG1("_6_ result=0x%X",result);
+//    //
+//    //                if ( (0 == result) || (-1 == result))
+//    //                {
+//    //                    snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
+//    //                            "error mq_receive(%d) result=%d errno=%d %s ",
+//    //                            fd_client.fd,
+//    //                            result , errno,strerror(errno));
+//    //                    TRACE_ERR(msgbuffer);
+//    //                    continue;
+//    //                }
+//    //                else
+//    //                {
+//    //                    result = 0;
+//    //                }
+//    //
+//    //                //            printf("vClientfilename=%s ",vClientfilename);
+//    //            }
+//    //
+//    //            if( 0 == result )
+//    //            {
+//    //                TRACE_DBG1("_7_ result=0x%X",result);
+//    //                result = pContextt->dataService.pFunctCB(&request,&response);
+//    //            }
+//    //            //        fprintf(stderr,"_11_ ");
+//    //
+//    //            mq_close(fd_client.fd);
+//    //
+//    //        }while(1);
+//    //
+//    //    }// if(0 == result)
+//
+//    return (void*)0;
+//}
 //************************************************************
 //*
 //************************************************************
@@ -499,31 +364,31 @@ int libmsg_srv_register_svc(sDataThreadCtx_t *a_pDataThreadCtx)
 //************************************************************
 //*
 //************************************************************
-int libmsg_cli_register_svc(sDataThreadCtx_t *a_pDataThreadCtx)
-{
-    int result = 0;
-    char msgbuffer[APISYSLOG_MSG_SIZE] = {0};
-
-    //*****************************
-    // create new tread for listening incomming messages
-    //*****************************
-    errno = 0;
-    result =  pthread_create(&a_pDataThreadCtx->pthreadID,
-            NULL,
-            &libmsg_cli_threadFunction,
-            (void*)a_pDataThreadCtx);
-
-    if( 0 != result )
-    {
-        snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
-                ": pthread_create() error =%d %s",
-                result,strerror(result));
-
-        TRACE_ERR(msgbuffer);
-    }
-
-    return result;
-}
+//int libmsg_cli_register_svc(sDataThreadCtx_t *a_pDataThreadCtx)
+//{
+//    int result = 0;
+//    char msgbuffer[APISYSLOG_MSG_SIZE] = {0};
+//
+//    //*****************************
+//    // create new tread for listening incomming messages
+//    //*****************************
+//    errno = 0;
+//    result =  pthread_create(&a_pDataThreadCtx->pthreadID,
+//            NULL,
+//            &libmsg_cli_threadFunction,
+//            (void*)a_pDataThreadCtx);
+//
+//    if( 0 != result )
+//    {
+//        snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
+//                ": pthread_create() error =%d %s",
+//                result,strerror(result));
+//
+//        TRACE_ERR(msgbuffer);
+//    }
+//
+//    return result;
+//}
 
 //***************************************************
 // return   : -1 if find
@@ -544,9 +409,9 @@ int libmsg_srv_find_registred_client(
     else
     {
         for(ii=0;       (ii < (MAX_POLL_FD))
-                    &&  (ii <= a_nfds)
-                    &&  (0 < a_nfds);
-            ii++ )
+        &&  (ii <= a_nfds)
+        &&  (0 < a_nfds);
+        ii++ )
         {
             result = strcmp(a_pRequest->filenameClient,a_filenameClient);
 
@@ -569,3 +434,137 @@ int libmsg_srv_find_registred_client(
 
     return result;
 }
+
+int libmsg_openBindConnect( const char  *a_clientFilename,
+                            const char  *a_serverFilename,
+                            int         *a_pSocketdescriptor)
+{
+    int result = 0;
+    int Socketdescriptor = 0;
+    int yes = 1;
+    struct sockaddr_un bind_sockaddr = {0};
+
+    if( (! (*a_clientFilename)) || !(*a_serverFilename) || !a_pSocketdescriptor)
+    {
+        result = EINVAL;
+    }
+
+    if( 0 == result)
+    {
+        Socketdescriptor = socket(AF_UNIX, SOCK_DGRAM, 0);
+
+        if( -1 == Socketdescriptor )
+        {
+            TRACE_ERR(" : socket()=%d errno=%d %s ",Socketdescriptor,errno,strerror(errno) );
+            result = errno;
+        }
+    }
+    if( 0 == result )
+    {
+        result = setsockopt(Socketdescriptor, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
+
+        if( 0 != result )
+        {
+            TRACE_ERR(" : setsockopt()=%d errno=%d %s ",
+                    result,errno,strerror(errno) );
+            result = errno;
+            close(Socketdescriptor);
+        }
+    }
+
+    if( 0 == result)
+    {
+        unlink(a_clientFilename);
+
+        /* Efface la structure */
+        memset(&bind_sockaddr, 0, sizeof(struct sockaddr));
+
+        bind_sockaddr.sun_family = AF_UNIX;
+        strncpy(bind_sockaddr.sun_path, a_clientFilename,
+                sizeof(bind_sockaddr.sun_path) - 1);
+
+        result = bind(Socketdescriptor, (struct sockaddr *) &bind_sockaddr,
+                sizeof(struct sockaddr_un)) ;
+
+        if( -1 == result  )
+        {
+            fprintf(stderr,"%s : bind(%d)=%d errn=%d %s ",
+                    __FUNCTION__,Socketdescriptor,result,errno,strerror(errno) );
+            close(Socketdescriptor);
+            result = errno;
+        }
+        else
+        {
+            *a_pSocketdescriptor = Socketdescriptor;
+        }
+    }
+
+    if( 0 == result)
+    {
+        result = net_ConnectSocketUnix(Socketdescriptor,a_serverFilename);
+
+        if( 0 !=  result )
+            *a_pSocketdescriptor = -1;
+    }
+
+    return result;
+}
+
+int libmsg_openBind(const char *a_socketFilename,int* a_pSocketdescriptor)
+{
+    int result = 0;
+    int Socketdescriptor = 0;
+    int yes = 1;
+    struct sockaddr_un sockaddr = {0};
+
+    Socketdescriptor = socket(AF_UNIX, SOCK_DGRAM, 0);
+
+    if( -1 == Socketdescriptor )
+    {
+        TRACE_ERR(" : socket()=%d errno=%d %s ",
+                Socketdescriptor,errno,strerror(errno) );
+        result = errno;
+    }
+
+    if( 0 == result )
+    {
+        result = setsockopt(Socketdescriptor, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
+
+        if( 0 != result )
+        {
+            TRACE_ERR(" : setsockopt()=%d errno=%d %s ",
+                    result,errno,strerror(errno) );
+            result = errno;
+            close(Socketdescriptor);
+        }
+    }
+
+    if( 0 == result)
+    {
+        /* Efface la structure */
+        memset(&sockaddr, 0, sizeof(struct sockaddr_un));
+
+        sockaddr.sun_family = AF_UNIX;
+        strncpy(sockaddr.sun_path, a_socketFilename,
+                sizeof(sockaddr.sun_path) - 1);
+
+        result = bind(Socketdescriptor, (struct sockaddr *) &sockaddr,
+                sizeof(struct sockaddr_un)) ;
+
+        if( -1 == result  )
+        {
+            TRACE_ERR(" : bind(%d)=%d errn=%d %s ",
+                    Socketdescriptor,
+                    result,errno,strerror(errno) );
+            close(Socketdescriptor);
+            result = errno;
+        }
+        else
+        {
+            *a_pSocketdescriptor = Socketdescriptor;
+        }
+    }
+
+    return result;
+}
+

@@ -75,7 +75,7 @@ int libmsg_srvtime_cli_wait();
 //****************************************************
 //          svc getdate
 //****************************************************
-int libmsg_srvtime_cli_getdate(const char* a_UniqID,double *a_pDate);
+int libmsg_srvtime_cli_getdate(double *a_pDate);
 
 int libmsg_srvtime_srv_register_svc_getdate(libmsg_pFunctCB_t a_pFunctCB);
 

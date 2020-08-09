@@ -1,6 +1,10 @@
 #! /bin/bash
 
-export LD_LIBRARY_PATH=$PWD/../libapisyslog/apisyslog/Debug:$PWD/libmessage/Debug:$PWD/../utilstools/Debug
+
+# $HOME/Dev/projects/Project/LibMessage/../libapisyslog/apisyslog/Debug:$HOME/Dev/projects/Project/LibMessage/../utilstools/Debug:$HOME/Dev/projects/Project/LibMessage/libmessage/Dunix
+#export LD_LIBRARY_PATH=$PWD/../libapisyslog/apisyslog/Debug:$PWD/libmessage/Dunix:$PWD/../utilstools/Debug
+
+export LD_LIBRARY_PATH=$HOME/Dev/projects/Project/LibMessage/../libapisyslog/apisyslog/Debug:$HOME/Dev/projects/Project/LibMessage/../utilstools/Debug:$HOME/Dev/projects/Project/LibMessage/libmessage/Dunix
 
 echo $LD_LIBRARY_PATH
 

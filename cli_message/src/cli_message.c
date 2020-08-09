@@ -31,7 +31,7 @@
 
 int test_msgQueue(char *a_ID)
 {
-//#define SERVER_TIME "toto"
+    //#define SERVER_TIME "toto"
 
     int result = 0;
     int vLenReceive = 0;
@@ -94,18 +94,18 @@ int test_msgQueue(char *a_ID)
         // prepare msg
 
         do{
-//            fprintf(stderr,"_5_ \n");
+            //            fprintf(stderr,"_5_ \n");
             // send msg to server
             //int mq_send(mqd_t mqdes, const char *msg_ptr,size_t msg_len, unsigned int msg_prio);
 
             result = mq_send(fd_server.fd, vClientfilename,
                     strlen(vClientfilename)+1,0);
 
-//            result = mq_send(fd_server.fd, vClientfilename,
-//                    strlen(vClientfilename)+1,0);
+            //            result = mq_send(fd_server.fd, vClientfilename,
+            //                    strlen(vClientfilename)+1,0);
 
-//            printf("type any key to continue. \n");
-//            getchar();
+            //            printf("type any key to continue. \n");
+            //            getchar();
             //            fprintf(stderr,"_6_ \n");
 
             if( 0 != result)
@@ -134,16 +134,21 @@ int test_msgQueue(char *a_ID)
 
     return result;
 }
-int check_loop(const char* a_UniqID, const char* a_value)
+int check_loop( const char* a_value)
 {
     int     result = 0;
     double  vDate = 0.0;
+    double     dVal = 0;
+    int         val = 0;
 
-    (void)a_value;
+    dVal = atof(a_value);
+    val = dVal * 1e6;
+    //    printf("a_value=%s dval=%f val=%d \n",a_value,dVal,val);
+
     do{
         vDate = 0.0;
 
-        result =  libmsg_srvtime_cli_getdate(a_UniqID, &vDate);
+        result =  libmsg_srvtime_cli_getdate(&vDate);
 
         if( 0 == result )
         {
@@ -154,7 +159,14 @@ int check_loop(const char* a_UniqID, const char* a_value)
             fprintf(stdout,"date = error result=%d \n",result);
         }
 
-        getchar();
+        if( 0 == dVal)
+        {
+            getchar();
+        }
+        else
+        {
+            usleep( val);
+        }
 
     }while(1);
 
@@ -176,7 +188,7 @@ static int libmsg_cli_cbfcnt_signaldate(
     return 0;
 }
 
-int check_signal(const char* a_UniqID, const char* a_value)
+int check_signal(const char* a_value)
 {
     int         result  = 0;
     double      timeout = 0.0;
@@ -184,26 +196,32 @@ int check_signal(const char* a_UniqID, const char* a_value)
 
     timeout = atof(a_value);
 
-    result = libmsg_srvtime_cli_signaldate(a_UniqID,
-            timeout,
-            &libmsg_cli_cbfcnt_signaldate);
+//    result = libmsg_srvtime_cli_signaldate(a_UniqID,
+//            timeout,
+//            &libmsg_cli_cbfcnt_signaldate);
 
-//    if( 0 == result )
-//    {
-//        result = libmsg_srvtime_cli_wait();
-//    }
+    //    if( 0 == result )
+    //    {
+    //        result = libmsg_srvtime_cli_wait();
+    //    }
     do{
 
         memset(buffer,0,255);
         fgets(buffer,255,stdin);
 
-       // if( buffer[])
+        // if( buffer[])
 
     }while(1);
 
     return result;
 }
 
+void printUsage(char *a_argv0 )
+{
+    fprintf(stderr,"\n syntaxe error : %s [cmd] [value] \n",a_argv0);
+    fprintf(stderr," [cmd] : loop | signal \n\n");
+
+}
 int main(int argc, char* argv[])
 {
     int     result = EXIT_SUCCESS;
@@ -212,25 +230,28 @@ int main(int argc, char* argv[])
 
     TRACE_DBG1("main_")
 
-//    result = libmessage_getdate("cli_message",SERVER_TIME_ID_GETDATE,&vDate);
-//    printf("\ncli_message : result = %d date = %f \n",result,vDate);
+    //    result = libmessage_getdate("cli_message",SERVER_TIME_ID_GETDATE,&vDate);
+    //    printf("\ncli_message : result = %d date = %f \n",result,vDate);
 
-    if(argc > 3 )
+    if(argc > 2)
     {
-        if( 0 == strcmp(argv[1] ,"loop") )
-        {
-            result =  check_loop(argv[2],"");
-        }
         if( 0 == strcmp(argv[1] ,"signal") )
         {
-            result =  check_signal(argv[2],argv[3]);
+            result =  check_signal(argv[2]);
+        }
+
+        else if( 0 == strcmp(argv[1] ,"loop") )
+        {
+            result =  check_loop(argv[2]);
+        }
+        else
+        {
+            printUsage(argv[0]);
         }
     }
     else
     {
-        fprintf(stderr,"\n syntaxe error : %s [cmd] [ID] [value] \n",argv[0]);
-        fprintf(stderr," [cmd] : loop | signal \n");
-        fprintf(stderr," [ID] : 1, 2 ,3. ... \n\n");
+        printUsage(argv[0]);
     }
 
     return result;
