@@ -323,9 +323,9 @@
                                     									
                                     <listOptionValue builtIn="false" value="pthread"/>
                                     									
-                                    <listOptionValue builtIn="false" value="utilstools"/>
-                                    									
                                     <listOptionValue builtIn="false" value="rt"/>
+                                    									
+                                    <listOptionValue builtIn="false" value="utilstools"/>
                                     									
                                     <listOptionValue builtIn="false" value="apisyslog"/>
                                     									
@@ -337,11 +337,15 @@
                                     									
                                     <listOptionValue builtIn="false" value="&quot;${workspace_loc:/libmessage/Dunix}&quot;"/>
                                     									
-                                    <listOptionValue builtIn="false" value="&quot;${workspace_loc:/apisyslog/Debug}&quot;"/>
-                                    									
                                     <listOptionValue builtIn="false" value="&quot;${workspace_loc:/utilstools/Debug}&quot;"/>
+                                    									
+                                    <listOptionValue builtIn="false" value="&quot;${workspace_loc:/apisyslog/Debug}&quot;"/>
                                     								
                                 </option>
+                                								
+                                <option id="gnu.c.link.option.ldflags.1244873541" name="Linker flags" superClass="gnu.c.link.option.ldflags" useByScannerDiscovery="false" value="" valueType="string"/>
+                                								
+                                <option id="gnu.c.link.option.pthread.1602314318" name="Support for pthread (-pthread)" superClass="gnu.c.link.option.pthread" useByScannerDiscovery="false" value="true" valueType="boolean"/>
                                 								
                                 <inputType id="cdt.managedbuild.tool.gnu.c.linker.input.159190535" superClass="cdt.managedbuild.tool.gnu.c.linker.input">
                                     									
@@ -408,6 +412,8 @@
     <storageModule moduleId="org.eclipse.cdt.core.LanguageSettingsProviders"/>
     	
     <storageModule moduleId="refreshScope" versionNumber="2">
+        		
+        <configuration configurationName="Dunix"/>
         		
         <configuration configurationName="Debug">
             			

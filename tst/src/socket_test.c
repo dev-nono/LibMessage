@@ -25,6 +25,8 @@
 #include <sys/un.h>
 
 #include "utilstools.h"
+#include "utilstools_listtailqueue.h"
+#include "utilstools_pthreadutils.h"
 
 
 #define SRV_GETDATE "/tmp/srv.getdate"
@@ -420,7 +422,7 @@ typedef struct
     int fd;
 }sData_t;
 
-pcond_t g_Condition = {0};;
+pcond_t g_Condition = {0};
 
 static void* threadfunct_srv_job_2(void* a_pArg)
 {

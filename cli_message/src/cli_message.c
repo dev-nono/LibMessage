@@ -29,6 +29,7 @@
 
 
 
+
 int test_msgQueue(char *a_ID)
 {
     //#define SERVER_TIME "toto"
@@ -134,6 +135,19 @@ int test_msgQueue(char *a_ID)
 
     return result;
 }
+static int libmsg_cli_cbfcnt_signaldate(sResponse_t *a_pResponse)
+{
+
+    sSignaldateResponse_t *pSignaldateResponse = (sSignaldateResponse_t *)a_pResponse->data;
+
+    TRACE_DBG4(" : date=%ld.%09ld \n",
+            pSignaldateResponse->timespesc.tv_sec,
+            pSignaldateResponse->timespesc.tv_nsec);
+
+
+    return 0;
+}
+
 int check_loop( const char* a_value)
 {
     int     result = 0;
@@ -173,20 +187,7 @@ int check_loop( const char* a_value)
     return 0;
 }
 
-static int libmsg_cli_cbfcnt_signaldate(
-        const sRequest_t  *a_pRequest,
-        sResponse_t *a_pResponse)
-{
 
-    sSignaldateResponse_t *pSignaldateResponse = (sSignaldateResponse_t *)a_pResponse->data;
-
-    TRACE_DBG4(" : date=%ld.%09ld \n",
-            pSignaldateResponse->timespesc.tv_sec,
-            pSignaldateResponse->timespesc.tv_nsec);
-
-
-    return 0;
-}
 
 int check_signal(const char* a_value)
 {
@@ -195,6 +196,7 @@ int check_signal(const char* a_value)
     char        buffer[255] = {0};
 
     timeout = atof(a_value);
+
 
 //    result = libmsg_srvtime_cli_signaldate(a_UniqID,
 //            timeout,
@@ -206,9 +208,13 @@ int check_signal(const char* a_value)
     //    }
     do{
 
-        memset(buffer,0,255);
-        fgets(buffer,255,stdin);
+//        memset(buffer,0,255);
+//        fgets(buffer,255,stdin);
 
+        result = libmsg_srvtime_cli_signaldate(timeout,libmsg_cli_cbfcnt_signaldate);
+        printf("%s_ : result = %d ",__FUNCTION__,result);
+
+        getchar();
         // if( buffer[])
 
     }while(1);

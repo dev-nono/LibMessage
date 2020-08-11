@@ -379,24 +379,6 @@
         	
     </storageModule>
     	
-    <storageModule moduleId="scannerConfiguration">
-        		
-        <autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
-        		
-        <scannerConfigBuildInfo instanceId="cdt.managedbuild.config.gnu.exe.release.709195608;cdt.managedbuild.config.gnu.exe.release.709195608.;cdt.managedbuild.tool.gnu.c.compiler.exe.release.42838505;cdt.managedbuild.tool.gnu.c.compiler.input.111477287">
-            			
-            <autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
-            		
-        </scannerConfigBuildInfo>
-        		
-        <scannerConfigBuildInfo instanceId="cdt.managedbuild.config.gnu.exe.debug.182365817;cdt.managedbuild.config.gnu.exe.debug.182365817.;cdt.managedbuild.tool.gnu.c.compiler.exe.debug.1203869253;cdt.managedbuild.tool.gnu.c.compiler.input.333902100">
-            			
-            <autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
-            		
-        </scannerConfigBuildInfo>
-        	
-    </storageModule>
-    	
     <storageModule moduleId="org.eclipse.cdt.core.LanguageSettingsProviders"/>
     	
     <storageModule moduleId="refreshScope" versionNumber="2">
@@ -418,5 +400,29 @@
     </storageModule>
     	
     <storageModule moduleId="org.eclipse.cdt.make.core.buildtargets"/>
+    	
+    <storageModule moduleId="scannerConfiguration">
+        		
+        <autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
+        		
+        <scannerConfigBuildInfo instanceId="cdt.managedbuild.config.gnu.exe.release.709195608;cdt.managedbuild.config.gnu.exe.release.709195608.;cdt.managedbuild.tool.gnu.c.compiler.exe.release.42838505;cdt.managedbuild.tool.gnu.c.compiler.input.111477287">
+            			
+            <autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
+            		
+        </scannerConfigBuildInfo>
+        		
+        <scannerConfigBuildInfo instanceId="cdt.managedbuild.config.gnu.exe.debug.182365817.898308952;cdt.managedbuild.config.gnu.exe.debug.182365817.898308952.;cdt.managedbuild.tool.gnu.c.compiler.exe.debug.2058936460;cdt.managedbuild.tool.gnu.c.compiler.input.1659421901">
+            			
+            <autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
+            		
+        </scannerConfigBuildInfo>
+        		
+        <scannerConfigBuildInfo instanceId="cdt.managedbuild.config.gnu.exe.debug.182365817;cdt.managedbuild.config.gnu.exe.debug.182365817.;cdt.managedbuild.tool.gnu.c.compiler.exe.debug.1203869253;cdt.managedbuild.tool.gnu.c.compiler.input.333902100">
+            			
+            <autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
+            		
+        </scannerConfigBuildInfo>
+        	
+    </storageModule>
     
 </cproject>

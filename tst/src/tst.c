@@ -29,6 +29,7 @@
 
 #include <utilstools.h>
 #include <utilstools_listtailqueue.h>
+#include "utilstools_time.h"
 
 int main_socket(int argc, char *argv[]);
 

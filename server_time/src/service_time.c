@@ -21,12 +21,15 @@
 #include <pthread.h>
 
 #include "apisyslog.h"
-
-
+#include "utilstools_listtailqueue.h"
 #include "libmsg_srvtime.h"
 
 
-static int libmsg_srv_cbfcnt_getdate(
+static sDataThreadCtx_t g_Context_signaldate = {0} ;
+
+ListQ_t g_List_signaldate = {0};
+
+static int servicetime_cbfcnt_svc_getdate(
         const sRequest_t  *a_pRequest,
         sResponse_t *a_pResponse)
 
@@ -56,6 +59,66 @@ static int libmsg_srv_cbfcnt_getdate(
 
     return result;
 }
+
+static int servicetime_cbfcnt_svc_signaldate(
+        const sRequestSignal_t  *a_pRequestSignal,
+        sResponse_t *a_pResponse)
+
+{
+    int     result = 0;
+//    char service[NI_MAXSERV]= {0};
+    char host[NI_MAXHOST]   = {0};
+    char    service[NAME_MAX]; // NI_MAXSERV
+    int nbitem = 0;
+
+    a_pResponse->header.result = 0;
+    a_pResponse->header.datasize = sizeof(a_pResponse->header);
+
+    result = getnameinfo((struct sockaddr*)&a_pRequestSignal->peer_addr,
+            a_pRequestSignal->peer_addr_len,
+            host,sizeof(host),
+            service,   sizeof(service),
+            NI_NUMERICHOST | NI_NUMERICSERV);
+
+    if( 0 != result )
+        result = -1;
+
+    ListQ_item_t *pItem = tq_insertTail(&g_List_signaldate);
+    pItem->pData = (void*)a_pRequestSignal;
+
+    nbitem = tq_size(&g_List_signaldate);
+    // register client    a_pRequest->filenameClient
+    // add new client in list
+
+    // register_srv_signal(servicetime_cbfcnt_srv_signal)
+
+    TRACE_DBG1(": service= %s host= %s nbitem=%d result=%d",service,host,nbitem,result);
+
+
+
+    return result;
+
+}
+
+static void * servicetime_threadFunction_signaldate(void * a_pArg)
+{
+
+    //configure timer
+
+    do
+    {
+        //wait signal
+        //for(ii=0 ; ii< nbitellist )
+        // sentto
+
+
+        //configure timer
+
+    }while(1);
+
+    return (void*)0;
+}
+
 //static int libmessage_cbfcnt_setdate(void* a_pData)
 //{
 //    int result = 0;
@@ -100,6 +163,22 @@ static int libmsg_srv_cbfcnt_getdate(
 //*********************************************************
 //*
 //*********************************************************
+int servicetime_signaldate()
+{
+    int result = 0;
+
+
+    // create signaldate thread job
+
+
+   // result = libmsg_srvtime_srv_register_svc_srvtime( servicetime_cbfcnt_svc_signaldate);
+
+    return result;
+}
+
+//*********************************************************
+//*
+//*********************************************************
 int main(void)
 {
     int result = 0;
@@ -107,12 +186,17 @@ int main(void)
     apisyslog_init("");
     sleep(1);
 
-    result = libmsg_srvtime_srv_register_svc_getdate(libmsg_srv_cbfcnt_getdate);
-    //    result = libmessage_register_service_time( SERVER_TIME_SETDATE, libmessage_cbfcnt_setdate);
-    //    result = libmessage_register_service_time( SERVER_TIME_SIGNAL,  libmessage_cbfcnt_signal,     libmessage_cbfcnt_signal);
+    tq_init(&g_List_signaldate,sizeof(sRequestSignal_t));
 
-//    sleep(1);
-//    result = libmsg_srvtime_srv_register_svc_signal(libmsg_srv_cbfcnt_signaldate);
+//    result = libmsg_srvtime_srv_register_svc_getdate(servicetime_cbfcnt_svc_getdate);
+    result = libmsg_srvtime_srv_register_svc_signal(servicetime_cbfcnt_svc_signaldate);
+
+    //    result = libmessage_register_service_time( SERVER_TIME_SETDATE, libmessage_cbfcnt_setdate);
+
+    //result = servicetime_signaldate();
+
+    //    sleep(1);
+    //    result = libmsg_srvtime_srv_register_svc_signal(libmsg_srv_cbfcnt_signaldate);
     sleep(1);
     result = libmsg_srvtime_srv_wait();
 

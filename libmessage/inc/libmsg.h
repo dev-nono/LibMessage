@@ -10,6 +10,11 @@
 
 #include <stdint.h>
 #include <poll.h>
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <netdb.h>
+
+
 
 
 #include "libmessage_common.h"
@@ -54,12 +59,25 @@ struct sRequest
     sHeader_t   header;
 
     char filenameClient[NAME_MAX];
-//    char filenameServer[NAME_MAX];
-//    char data __flexarr;    /* Name.  */
+    //    char filenameServer[NAME_MAX];
+    //    char data __flexarr;    /* Name.  */
     char        data[DATA_MAX_REQUEST] ;// __flexarr;    /* Name.  */
 
 };
 typedef struct sRequest sRequest_t;
+
+//*****************************************************
+struct sRequestSignal
+//*****************************************************
+{
+    struct sRequest request;
+
+    struct sockaddr_storage peer_addr; // NI_NUMERICHOST | NI_NUMERICSERV
+    socklen_t       peer_addr_len;
+
+};
+typedef struct sRequestSignal sRequestSignal_t;
+
 
 //*****************************************************
 struct sResponse
@@ -72,21 +90,20 @@ struct sResponse
 typedef struct sResponse sResponse_t;
 
 typedef int (*libmsg_pFunctCB_t)(const sRequest_t  *a_pRequest,sResponse_t *a_pResponse);
+typedef int (*libmsg_pFunctSignalCB_t)(const sRequestSignal_t  *a_pRequestSignal,sResponse_t *a_pResponse);
+typedef int (*libmsg_pFunctCB_response_t)(sResponse_t *a_pResponse);
 
 //*****************************************************
 struct sDataService
 //*****************************************************
 {
     char                    filenameServer[NAME_MAX];
-    //char                    filenameSemaphore[NAME_MAX];
 
     libmsg_pFunctCB_t   pFunctCB;
-    int                     id;
+    int                 id;
 
     sRequest_t     request;
     sResponse_t    response;
-
-
 };
 typedef struct sDataService   sDataService_t;
 
@@ -95,22 +112,39 @@ struct sDataThreadCtx
 {
     pthread_t       pthreadID;
     pthread_attr_t  attr;
-
     sDataService_t  dataService;
-
-    // for client signal;
-    sRequest_t      request[MAX_POLL_FD];
-    int             filedescriptor[MAX_POLL_FD];
-    //struct pollfd   pollFdClient[MAX_POLL_FD];
-    nfds_t          nfds;
-
 };
 typedef struct sDataThreadCtx sDataThreadCtx_t;
 
+//*****************************************************
+struct sDataServiceSignal
+//*****************************************************
+{
+    char                    filenameServer[NAME_MAX];
+
+    libmsg_pFunctSignalCB_t pFunctCB;
+    int                     id;
+
+    sRequestSignal_t    request;
+    sResponse_t         response;
+};
+typedef struct sDataServiceSignal   sDataServiceSignal_t;
+
+struct sDataThreadCtxSignal
+{
+    pthread_t       pthreadID;
+    pthread_attr_t  attr;
+
+    sDataServiceSignal_t  dataService;
+};
+typedef struct sDataThreadCtxSignal sDataThreadCtxSignal_t;
 
 int libmsg_cli_getdata(sDataService_t *a_pDataService);
 
-int libmsg_srv_register_svc(sDataThreadCtx_t *a_pDataThreadCtx);
+//int libmsg_srv_register_svc(sDataThreadCtx_t *a_pDataThreadCtx);
+int libmsg_srv_register_svc_recvfrom(sDataThreadCtx_t *a_pDataThreadCtx);
+int libmsg_srv_register_svc_recvfrom_Signal(sDataThreadCtxSignal_t *a_pDataThreadCtx);
+
 //int libmsg_cli_register_svc(sDataThreadCtx_t *a_pDataThreadCtx);
 
 //int libmsg_srv_find_registred_client(
