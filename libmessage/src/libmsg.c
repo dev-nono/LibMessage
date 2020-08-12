@@ -51,7 +51,7 @@ int libmsg_cli_getdata(sDataService_t *a_pDataService)
     {
         unlink(a_pDataService->request.filenameClient);
 
-        result = libmsg_openBindConnect(   a_pDataService->request.filenameClient,
+        result = net_openBindConnect(   a_pDataService->request.filenameClient,
                 a_pDataService->filenameServer,
                 &sock_client);
 
@@ -105,11 +105,11 @@ int libmsg_cli_getdata(sDataService_t *a_pDataService)
 }
 
 
-static void * libmsg_srv_threadFunction_recvfrom(void * a_pArg)
+static void * libmsg_srv_threadFunction(void * a_pArg)
 {
     int             result          = 0;
 
-    sDataThreadCtx_t *pContext = (sDataThreadCtx_t *)a_pArg;
+    sThreadDataCtx_t *pContext = (sThreadDataCtx_t *)a_pArg;
 
     sRequest_t  request     = {0};
     sResponse_t response    = {0};
@@ -128,7 +128,7 @@ static void * libmsg_srv_threadFunction_recvfrom(void * a_pArg)
             pContext->dataService.filenameServer,
             result,errno,strerror(errno) );
 
-    result = libmsg_openBind(pContext->dataService.filenameServer,&sock_srv_read);
+    result = net_openBind(pContext->dataService.filenameServer,&sock_srv_read);
 
     if( 0 != result)
     {
@@ -248,28 +248,26 @@ static void * libmsg_srv_threadFunction_recvfrom(void * a_pArg)
 //****************************************************************************
 //*
 //****************************************************************************
-static void * libmsg_srv_threadFunction_recvfrom_signal(void * a_pArg)
+static void * libmsg_srv_threadFunction_signal(void * a_pArg)
 //****************************************************************************
 {
     int             result          = 0;
 
-    sDataThreadCtxSignal_t *pContext = (sDataThreadCtxSignal_t *)a_pArg;
+    sThreadDataCtxSignal_t *pContext = (sThreadDataCtxSignal_t *)a_pArg;
 
     sRequest_t  request     = {0};
     sResponse_t response    = {0};
 
     int                     sock_srv_read  = -1;
 
-    sRequestSignal_t *pRequestsignal = 0;
+    sRequestTimer_t *pRequestsignal = 0;
     char    host[NI_MAXHOST];
     char    service[NAME_MAX]; // NI_MAXSERV
 
-    socklen_t               peer_addr_len;
-
-    struct sockaddr peer_addr1;
-    struct sockaddr_un peer_addr2;
-
-
+//    socklen_t               peer_addr_len;
+//
+//    struct sockaddr peer_addr1;
+//    struct sockaddr_un peer_addr2;
     int                     result_recvfrom = 0;
 
     TRACE_DBG1(" : _IN_1");
@@ -280,7 +278,7 @@ static void * libmsg_srv_threadFunction_recvfrom_signal(void * a_pArg)
             pContext->dataService.filenameServer,
             result,errno,strerror(errno) );
 
-    result = libmsg_openBind(pContext->dataService.filenameServer,&sock_srv_read);
+    result = net_openBind(pContext->dataService.filenameServer,&sock_srv_read);
 
     if( 0 != result)
     {
@@ -311,7 +309,7 @@ static void * libmsg_srv_threadFunction_recvfrom_signal(void * a_pArg)
                 //*******************************************************
                 // read input
                 //
-                pRequestsignal = (sRequestSignal_t *) calloc(1,sizeof(sRequestSignal_t)) ;
+                pRequestsignal = (sRequestTimer_t *) calloc(1,sizeof(sRequestTimer_t)) ;
 
                 pRequestsignal->peer_addr_len = sizeof(pRequestsignal->peer_addr);
 
@@ -528,7 +526,7 @@ static void * libmsg_srv_threadFunction_recvfrom_signal(void * a_pArg)
 //************************************************************
 //*
 //************************************************************
-int libmsg_srv_register_svc_recvfrom(sDataThreadCtx_t *a_pDataThreadCtx)
+int libmsg_srv_register_svc(sThreadDataCtx_t *a_pThreadDataCtx)
 {
     int result = 0;
     char msgbuffer[APISYSLOG_MSG_SIZE] = {0};
@@ -537,10 +535,10 @@ int libmsg_srv_register_svc_recvfrom(sDataThreadCtx_t *a_pDataThreadCtx)
     // create new tread for listening incomming messages
     //*****************************
     errno = 0;
-    result =  pthread_create(&a_pDataThreadCtx->pthreadID,
+    result =  pthread_create(&a_pThreadDataCtx->pthreadID,
             NULL,
-            &libmsg_srv_threadFunction_recvfrom,
-            (void*)a_pDataThreadCtx);
+            &libmsg_srv_threadFunction,
+            (void*)a_pThreadDataCtx);
 
     if( 0 != result )
     {
@@ -556,7 +554,7 @@ int libmsg_srv_register_svc_recvfrom(sDataThreadCtx_t *a_pDataThreadCtx)
 //************************************************************
 //*
 //************************************************************
-int libmsg_srv_register_svc_recvfrom_Signal(sDataThreadCtxSignal_t *a_pDataThreadCtx)
+int libmsg_srv_register_svc_Signal(sThreadDataCtxSignal_t *a_pThreadDataCtx)
 {
     int result = 0;
     char msgbuffer[APISYSLOG_MSG_SIZE] = {0};
@@ -565,10 +563,10 @@ int libmsg_srv_register_svc_recvfrom_Signal(sDataThreadCtxSignal_t *a_pDataThrea
     // create new tread for listening incomming messages
     //*****************************
     errno = 0;
-    result =  pthread_create(&a_pDataThreadCtx->pthreadID,
+    result =  pthread_create(&a_pThreadDataCtx->pthreadID,
             NULL,
-            &libmsg_srv_threadFunction_recvfrom_signal,
-            (void*)a_pDataThreadCtx);
+            &libmsg_srv_threadFunction_signal,
+            (void*)a_pThreadDataCtx);
 
     if( 0 != result )
     {
@@ -581,36 +579,6 @@ int libmsg_srv_register_svc_recvfrom_Signal(sDataThreadCtxSignal_t *a_pDataThrea
 
     return result;
 }
-//************************************************************
-//*
-//************************************************************
-int libmsg_srv_register_svc(sDataThreadCtx_t *a_pDataThreadCtx)
-{
-    int result = 0;
-    char msgbuffer[APISYSLOG_MSG_SIZE] = {0};
-
-    //*****************************
-    // create new tread for listening incomming messages
-    //*****************************
-    errno = 0;
-    result =  pthread_create(&a_pDataThreadCtx->pthreadID,
-            NULL,
-            &libmsg_srv_threadFunction_recvfrom_signal,
-            (void*)a_pDataThreadCtx);
-
-    if( 0 != result )
-    {
-        snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
-                ": pthread_create() error =%d %s",
-                result,strerror(result));
-
-        TRACE_ERR(msgbuffer);
-    }
-
-    return result;
-}
-
-
 //***************************************************
 // return   : -1 if find
 //          :  0 if not find
@@ -655,142 +623,3 @@ int libmsg_srv_register_svc(sDataThreadCtx_t *a_pDataThreadCtx)
 //
 //    return result;
 //}
-
-int libmsg_openBindConnect( const char  *a_clientFilename,
-                            const char  *a_serverFilename,
-                            int         *a_pSocketdescriptor)
-{
-    int result = 0;
-    int Socketdescriptor = 0;
-    int yes = 1;
-    struct sockaddr_un bind_sockaddr = {0};
-
-    if( (! (*a_clientFilename)) || !(*a_serverFilename) || !a_pSocketdescriptor)
-    {
-        result = EINVAL;
-    }
-
-    if( 0 == result)
-    {
-        Socketdescriptor = socket(AF_UNIX, SOCK_DGRAM, 0);
-
-        if( -1 == Socketdescriptor )
-        {
-            TRACE_ERR(" : socket()=%d errno=%d %s ",Socketdescriptor,errno,strerror(errno) );
-            result = errno;
-        }
-    }
-    if( 0 == result )
-    {
-        result = setsockopt(Socketdescriptor, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
-
-        if( 0 != result )
-        {
-            TRACE_ERR(" : setsockopt()=%d errno=%d %s ",
-                    result,errno,strerror(errno) );
-            result = errno;
-            close(Socketdescriptor);
-        }
-    }
-
-    if( 0 == result)
-    {
-        unlink(a_clientFilename);
-
-        /* Efface la structure */
-        memset(&bind_sockaddr, 0, sizeof(struct sockaddr));
-
-        bind_sockaddr.sun_family = AF_UNIX;
-        strncpy(bind_sockaddr.sun_path, a_clientFilename,
-                sizeof(bind_sockaddr.sun_path) - 1);
-
-        result = bind(Socketdescriptor, (struct sockaddr *) &bind_sockaddr,
-                sizeof(struct sockaddr_un)) ;
-
-        if( -1 == result  )
-        {
-            TRACE_ERR(" : bind(%d)=%d errn=%d %s ",
-                    Socketdescriptor,result,errno,strerror(errno) );
-            close(Socketdescriptor);
-            result = errno;
-        }
-        else
-        {
-            *a_pSocketdescriptor = Socketdescriptor;
-        }
-    }
-
-    if( 0 == result)
-    {
-        result = net_ConnectSocketUnix(Socketdescriptor,a_serverFilename);
-
-        if( 0 !=  result )
-        {
-            TRACE_ERR(" : net_ConnectSocketUnix(%d,%s)=%d errn=%d %s ",
-                    Socketdescriptor,a_serverFilename,
-                    result,errno,strerror(errno) );
-            *a_pSocketdescriptor = -1;
-        }
-    }
-
-    return result;
-}
-
-int libmsg_openBind(const char *a_socketFilename,int* a_pSocketdescriptor)
-{
-    int result = 0;
-    int Socketdescriptor = 0;
-    int yes = 1;
-    struct sockaddr_un sockaddr = {0};
-
-    Socketdescriptor = socket(AF_UNIX, SOCK_DGRAM, 0);
-
-    if( -1 == Socketdescriptor )
-    {
-        TRACE_ERR(" : socket()=%d errno=%d %s ",
-                Socketdescriptor,errno,strerror(errno) );
-        result = errno;
-    }
-
-    if( 0 == result )
-    {
-        result = setsockopt(Socketdescriptor, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
-
-        if( 0 != result )
-        {
-            TRACE_ERR(" : setsockopt()=%d errno=%d %s ",
-                    result,errno,strerror(errno) );
-            result = errno;
-            close(Socketdescriptor);
-        }
-    }
-
-    if( 0 == result)
-    {
-        /* Efface la structure */
-        memset(&sockaddr, 0, sizeof(struct sockaddr_un));
-
-        sockaddr.sun_family = AF_UNIX;
-        strncpy(sockaddr.sun_path, a_socketFilename,
-                sizeof(sockaddr.sun_path) - 1);
-
-        result = bind(Socketdescriptor, (struct sockaddr *) &sockaddr,
-                sizeof(struct sockaddr_un)) ;
-
-        if( -1 == result  )
-        {
-            TRACE_ERR(" : bind(%d)=%d errn=%d %s ",
-                    Socketdescriptor,
-                    result,errno,strerror(errno) );
-            close(Socketdescriptor);
-            result = errno;
-        }
-        else
-        {
-            *a_pSocketdescriptor = Socketdescriptor;
-        }
-    }
-
-    return result;
-}
-

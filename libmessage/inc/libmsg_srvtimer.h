@@ -5,8 +5,8 @@
  *      Author: bruno
  */
 
-#ifndef INC_LIBMSG_SRVTIME_H_
-#define INC_LIBMSG_SRVTIME_H_
+#ifndef INC_LIBMSG_SRVTIMER_H_
+#define INC_LIBMSG_SRVTIMER_H_
 
 #include "libmessage_common.h"
 #include "libmsg.h"
@@ -65,33 +65,24 @@ typedef struct sSignaldateResponse  sSignaldateResponse_t;
 //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 //            generic CLIENT / SERVER
 //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-int libmsg_srvtime_srv_wait();
-int libmsg_srvtime_cli_wait();
+int libmsg_srvtimer_srv_wait();
+int libmsg_srvtimer_cli_wait();
 
 //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 //          svc getdate
 //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-int libmsg_srvtime_cli_getdate(double *a_pDate);
+int libmsg_srvtimer_cli_getdate(double *a_pDate);
+
+int libmsg_srvtimer_srv_register_svc_getdate(libmsg_pFunctCB_t a_pFunctCB);
 
 //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-//          svc signaldate
+//          svc timer
 //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
-int libmsg_srvtime_cli_signaldate(  const double a_Date,
-        libmsg_pFunctCB_response_t a_pFunctCB);
-//int libmsg_srvtime_srv_register_svc_getdate_recvfrom(libmsg_pFunctCB_t a_pFunctCB);
+int libmsg_srvtimer_cli_timer(const double a_Date,libmsg_pFunctCB_response_t a_pFunctCB);
+
+int libmsg_srvtimer_srv_register_svc_timer(libmsg_pFunctSignalCB_t a_pFunctCB);
 
 
-//***************************************************************************
-int libmsg_srvtime_srv_register_svc_signal(libmsg_pFunctSignalCB_t a_pFunctCB);
-
-//int libmsg_srvtime_srv_register_svc_getdate(libmsg_pFunctCB_t a_pFunctCB);
-
-
-
-//int libmsg_srvtime_srv_register_svc_signal(libmsg_pFunctCB_t a_pFunctCB);
-//int libmsg_srvtime_register_signal(sDataThreadCtx_t *a_pDataThreadCtx);
-//int libmsg_srvtime_srv_signaldate_addClientNotify(const sRequest_t *a_pRequest);
-
-#endif /* INC_LIBMSG_SRVTIME_H_ */
+#endif /* INC_LIBMSG_SRVTIMER_H_ */
 

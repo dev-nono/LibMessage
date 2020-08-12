@@ -17,17 +17,17 @@
 #include <time.h>
 #include <poll.h>
 #include <errno.h>
+#include <libmsg_srvtimer.h>
 #include <unistd.h>
 #include <pthread.h>
 
 #include "apisyslog.h"
 #include "utilstools_listtailqueue.h"
-#include "libmsg_srvtime.h"
 
 
-static sDataThreadCtx_t g_Context_signaldate = {0} ;
+//static sDataThreadCtx_t g_Context_signaldate = {0} ;
 
-ListQ_t g_List_signaldate = {0};
+ListQ_t g_List_clienttimer = {0};
 
 static int servicetime_cbfcnt_svc_getdate(
         const sRequest_t  *a_pRequest,
@@ -60,8 +60,8 @@ static int servicetime_cbfcnt_svc_getdate(
     return result;
 }
 
-static int servicetime_cbfcnt_svc_signaldate(
-        const sRequestSignal_t  *a_pRequestSignal,
+static int servicetime_cbfcnt_svc_timer(
+        const sRequestTimer_t  *a_pRequestSignal,
         sResponse_t *a_pResponse)
 
 {
@@ -83,10 +83,10 @@ static int servicetime_cbfcnt_svc_signaldate(
     if( 0 != result )
         result = -1;
 
-    ListQ_item_t *pItem = tq_insertTail(&g_List_signaldate);
+    ListQ_item_t *pItem = tq_insertTail(&g_List_clienttimer);
     pItem->pData = (void*)a_pRequestSignal;
 
-    nbitem = tq_size(&g_List_signaldate);
+    nbitem = tq_size(&g_List_clienttimer);
     // register client    a_pRequest->filenameClient
     // add new client in list
 
@@ -100,10 +100,16 @@ static int servicetime_cbfcnt_svc_signaldate(
 
 }
 
-static void * servicetime_threadFunction_signaldate(void * a_pArg)
+static void * servicetime_threadFunction_timer(void * a_pArg)
 {
 
+    sThreadDataCtxSignal_t *pContext = (sThreadDataCtxSignal_t *) a_pArg;
+
+
+    (void)pContext;
+
     //configure timer
+
 
     do
     {
@@ -160,21 +166,7 @@ static void * servicetime_threadFunction_signaldate(void * a_pArg)
 //
 //    return result;
 //}
-//*********************************************************
-//*
-//*********************************************************
-int servicetime_signaldate()
-{
-    int result = 0;
 
-
-    // create signaldate thread job
-
-
-   // result = libmsg_srvtime_srv_register_svc_srvtime( servicetime_cbfcnt_svc_signaldate);
-
-    return result;
-}
 
 //*********************************************************
 //*
@@ -186,19 +178,16 @@ int main(void)
     apisyslog_init("");
     sleep(1);
 
-    tq_init(&g_List_signaldate,sizeof(sRequestSignal_t));
+    tq_init(&g_List_clienttimer,sizeof(sRequestTimer_t));
 
-//    result = libmsg_srvtime_srv_register_svc_getdate(servicetime_cbfcnt_svc_getdate);
-    result = libmsg_srvtime_srv_register_svc_signal(servicetime_cbfcnt_svc_signaldate);
 
-    //    result = libmessage_register_service_time( SERVER_TIME_SETDATE, libmessage_cbfcnt_setdate);
+    result = libmsg_srvtimer_srv_register_svc_getdate(servicetime_cbfcnt_svc_getdate);
 
-    //result = servicetime_signaldate();
 
-    //    sleep(1);
-    //    result = libmsg_srvtime_srv_register_svc_signal(libmsg_srv_cbfcnt_signaldate);
-    sleep(1);
-    result = libmsg_srvtime_srv_wait();
+    result = libmsg_srvtimer_srv_register_svc_timer(servicetime_cbfcnt_svc_timer);
+
+
+    result = libmsg_srvtimer_srv_wait();
 
     return result;
 }

@@ -8,10 +8,6 @@
 
 #include <stdio.h>
 
-#include <fcntl.h>           /* Pour les constantes O_* */
-#include <sys/stat.h>        /* Pour les constantes des modes */
-#include <mqueue.h>
-
 #include <errno.h>
 #include <string.h>
 #include <poll.h>
@@ -23,27 +19,20 @@
 #include <sys/syscall.h>
 #include <sys/types.h>
 #include <limits.h>
+#include <errno.h>
 
 #include "apisyslog.h"
 #include "utilstools_time.h"
 
-#include "libmsg_srvtime.h"
+#include "libmsg_srvtimer.h"
 
 
 // client  : /process.id.svc
 // server  : /process.svc
 //
 
-static sDataThreadCtx_t g_ThreadCtx_srv_svc_getdate          = {0};
-
-static sDataThreadCtxSignal_t g_ThreadCtx_srv_svc_signaldate       = {0};
-
-//static sDataThreadCtx_t g_ThreadCtx_cli_SignaldateNotify     = {0};
-//static sDataThreadCtx_t g_ThreadCtx_srv_signaldateNotify     = {0};
-
-//static void * libmsg_cli_threadFunction_signaldate(void * a_pArg);
-
-
+static sThreadDataCtx_t         g_ThreadCtx_srv_svc_getdate          = {0};
+static sThreadDataCtxSignal_t   g_ThreadCtx_srv_svc_timer       = {0};
 
 //************************************************************
 //  client side
@@ -52,7 +41,7 @@ static sDataThreadCtxSignal_t g_ThreadCtx_srv_svc_signaldate       = {0};
 //          SUCCESS    0
 //          EINVAL          22  Invalid argument
 //************************************************************
-int libmsg_srvtime_cli_getdate(_OUT_ double *a_Date)
+int libmsg_srvtimer_cli_getdate(_OUT_ double *a_Date)
 {
     int     result                  = 0;
     char msgbuffer[APISYSLOG_MSG_SIZE] = {0};
@@ -66,7 +55,7 @@ int libmsg_srvtime_cli_getdate(_OUT_ double *a_Date)
     getUniqname("/tmp",SVC_GETDATE ,ClientFilename);
 
     strncpy(dataService.request.filenameClient,ClientFilename,NAME_MAX-1);
-    strncpy(dataService.filenameServer,SERVER_TIME_GETDATE,NAME_MAX-1);
+    strncpy(dataService.filenameServer,SRVTIMER_GETDATE,NAME_MAX-1);
 
     if( 0 == result )
     {
@@ -93,7 +82,7 @@ int libmsg_srvtime_cli_getdate(_OUT_ double *a_Date)
 //************************************************************
 //*
 //************************************************************
-int libmsg_srvtime_srv_register_svc_getdate_recvfrom(libmsg_pFunctCB_t a_pFunctCB)
+int libmsg_srvtimer_srv_register_svc_getdate(libmsg_pFunctCB_t a_pFunctCB)
 {
     int result = 0;
 
@@ -104,35 +93,35 @@ int libmsg_srvtime_srv_register_svc_getdate_recvfrom(libmsg_pFunctCB_t a_pFunctC
     g_ThreadCtx_srv_svc_getdate.dataService.pFunctCB = a_pFunctCB;
 
     strncpy(g_ThreadCtx_srv_svc_getdate.dataService.filenameServer,
-            SERVER_TIME_GETDATE,
+            SRVTIMER_GETDATE,
             sizeof(g_ThreadCtx_srv_svc_getdate.dataService.filenameServer)-1);
 
-    result = libmsg_srv_register_svc_recvfrom(&g_ThreadCtx_srv_svc_getdate);
+    result = libmsg_srv_register_svc(&g_ThreadCtx_srv_svc_getdate);
 
     return result;
 }
-
 
 //************************************************************
 //*
 //************************************************************
 
-int libmsg_srvtime_cli_signaldate(  const double        a_Date,
-        libmsg_pFunctCB_response_t a_pFunctCB)
+int libmsg_srvtimer_cli_timer(
+        const double                a_Date,
+        libmsg_pFunctCB_response_t  a_pFunctCB) // TODO
 {
     int     result                  = 0;
-    char msgbuffer[APISYSLOG_MSG_SIZE] = {0};
-    char ClientFilename[NAME_MAX];
-
+//    char msgbuffer[APISYSLOG_MSG_SIZE] = {0};
     sDataService_t      dataService;
-    sGetdateResponse_t  *pResponse_getdate  = 0;
+//    sGetdateResponse_t  *pResponse_getdate  = 0;
 
     memset(&dataService,0,sizeof(dataService));
 
-    getUniqname("/tmp",SVC_SIGNALDATE ,ClientFilename);
+    (void)a_Date; // TODO
+    (void)a_pFunctCB;
 
-    strncpy(dataService.request.filenameClient,ClientFilename,NAME_MAX-1);
-    strncpy(dataService.filenameServer,SERVER_TIME_SIGNALDATE,NAME_MAX-1);
+    getUniqname("/tmp",SVC_TIMER ,dataService.request.filenameClient);
+
+    strncpy(dataService.filenameServer,SRVTIMER_TIMER,NAME_MAX-1);
 
     if( 0 == result )
     {
@@ -141,7 +130,6 @@ int libmsg_srvtime_cli_signaldate(  const double        a_Date,
 
     if( 0 == result )
     {
-        // create thread
     }
 
     return result;
@@ -150,13 +138,13 @@ int libmsg_srvtime_cli_signaldate(  const double        a_Date,
 //************************************************************
 //*
 //************************************************************
-int libmsg_srvtime_srv_wait()
+int libmsg_srvtimer_srv_wait()
 {
     int result = 0;
 
     result = pthread_join(g_ThreadCtx_srv_svc_getdate.pthreadID,0);
 
-    result = pthread_join(g_ThreadCtx_srv_svc_signaldate.pthreadID,0);
+    result = pthread_join(g_ThreadCtx_srv_svc_timer.pthreadID,0);
 
     //*****************************
     // LIBMESSAGE_ID_END
@@ -176,7 +164,7 @@ int libmsg_srvtime_srv_wait()
 //************************************************************
 //*
 //************************************************************
-int libmsg_srvtime_srv_register_svc_signal(libmsg_pFunctSignalCB_t a_pFunctCB)
+int libmsg_srvtimer_srv_register_svc_timer(libmsg_pFunctSignalCB_t a_pFunctCB)
 {
     int result = 0;
 
@@ -184,13 +172,13 @@ int libmsg_srvtime_srv_register_svc_signal(libmsg_pFunctSignalCB_t a_pFunctCB)
     // incomming message
     //*****************************
 
-    g_ThreadCtx_srv_svc_signaldate.dataService.pFunctCB = a_pFunctCB;
+    g_ThreadCtx_srv_svc_timer.dataService.pFunctCB = a_pFunctCB;
 
-    strncpy(g_ThreadCtx_srv_svc_signaldate.dataService.filenameServer,
-            SERVER_TIME_SIGNALDATE,
-            sizeof(g_ThreadCtx_srv_svc_signaldate.dataService.filenameServer)-1);
+    strncpy(g_ThreadCtx_srv_svc_timer.dataService.filenameServer,
+            SRVTIMER_TIMER,
+            sizeof(g_ThreadCtx_srv_svc_timer.dataService.filenameServer)-1);
 
-    result = libmsg_srv_register_svc_recvfrom_Signal(&g_ThreadCtx_srv_svc_signaldate);
+    result = libmsg_srv_register_svc_Signal(&g_ThreadCtx_srv_svc_timer);
 
 //    //*****************************
 //    // sending notification
@@ -259,7 +247,7 @@ int libmsg_srvtime_srv_register_svc_signal(libmsg_pFunctSignalCB_t a_pFunctCB)
 //************************************************************
 //*
 //************************************************************
-int libmsg_srvtime_cli_wait()
+int libmsg_srvtimer_cli_wait()
 {
     int result = 0;
 
