@@ -3,6 +3,8 @@
 	<name>libmessage</name>
 	<comment></comment>
 	<projects>
+		<project>apisyslog</project>
+		<project>utilstools</project>
 	</projects>
 	<buildSpec>
 		<buildCommand>

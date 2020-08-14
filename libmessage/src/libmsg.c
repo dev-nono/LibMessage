@@ -500,8 +500,7 @@ static void * libmsg_srv_threadFunction_signal(void * a_pArg)
                 }
                 else
                 {
-                    result = pContext->dataService.pFunctCB(
-                            &request,&response);
+                    result = pContext->dataService.pFunctCB(&request,&response);
                     TRACE_DBG1("_41_ : pContext->dataService.pFunctCB()=%d ",result);
                 }
                 if( 0 != result)

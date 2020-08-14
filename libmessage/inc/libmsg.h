@@ -81,6 +81,7 @@ struct sRequestServer
     struct sockaddr_storage peer_addr; // NI_NUMERICHOST | NI_NUMERICSERV
     socklen_t               peer_addr_len;
 
+    timer_t                 timerid;
 };
 typedef struct sRequestServer sRequestServer_t;
 
@@ -127,12 +128,11 @@ typedef struct sThreadDataCtx sThreadDataCtx_t;
 struct sDataServiceSignal
 //*****************************************************
 {
-    char                    filenameServer[NAME_MAX];
+    char                        filenameServer[NAME_MAX];
 
-    sSignal_t           dataSignal;
-    libmsg_pFunctCB_t   pFunctCB;
+    sSignal_t                   dataSignal;
+    libmsg_pFunctCB_t           pFunctCB;
     libmsg_pFunctCB_response_t  pFunctCBresponse;
-    int                     id;
 
     sRequestServer_t    request;
     sResponse_t         response;

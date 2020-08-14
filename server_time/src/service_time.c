@@ -32,7 +32,8 @@
 //static sDataThreadCtx_t g_Context_signaldate = {0} ;
 
 ListQ_t g_List_clienttimer  = {0};
-ListQ_t g_List_tempo        = {0};
+ListQ_t g_List_Register     = {0};
+ListQ_t g_List_UnRegister   = {0};
 
 sThreadDataCtx_t    g_ThreadDataCtx_Timer = {0};
 
@@ -95,14 +96,15 @@ static int servicetime_cbfcnt_svc_timer(
         result = -1;
 #endif
 
-    tq_lock(&g_List_tempo);
+    tq_lock(&g_List_Register);
 
-    pItem = tq_insertTail(&g_List_tempo);
+    pItem = tq_insertTail(&g_List_Register);
 
     pItem->pData = (void*)pRequestServer;
 
-    nbitem = tq_size(&g_List_tempo);
-    tq_unlock(&g_List_tempo);
+    nbitem = tq_size(&g_List_Register);
+
+    tq_unlock(&g_List_Register);
 
     // send signal to thread
     result = pthread_kill(g_ThreadDataCtx_Timer.pthreadID,SIGUSR1);
@@ -122,6 +124,30 @@ static int servicetime_cbfcnt_svc_timer(
 
     return result;
 }
+
+int servicetime_removeitemlist(ListQ_t *a_pList,ListQ_item_t *a_pItem)
+{
+    int result = 0;
+    tq_lock(a_pList);
+
+    tq_removeItemList(a_pList,a_pItem);
+
+    sRequestServer_t    *pRequestServer  = (sRequestServer_t *)a_pItem->pData;
+    struct itimerspec time_isp = {0};
+
+    // reset timer
+    result = timer_settime(pRequestServer->timerid,0,&time_isp,0);
+
+    tq_destroyItem(a_pItem,1);
+
+    tq_unlock(a_pList);
+
+    TRACE_DBG1("timer_settime(%d)=%d size=%d",pRequestServer->timerid,result,
+            tq_size(a_pList) );
+
+    return 0;
+}
+
 //********************************************
 //*
 //********************************************
@@ -132,8 +158,8 @@ static void servicetime_funcThread_timerCB(__sigval_t a_sigval)
     sResponse_t response = {0};
 //    char    localhost[NI_MAXHOST]  = {0};
     char    localservice[NAME_MAX] = {0}; // NI_MAXSERV
-    sRequestServer_t    *pRequestServer  = (sRequestServer_t *)a_sigval.sival_ptr;
-    //sTimerRequest_t    *pRequestTimer  = (sTimerRequest_t*)pRequestServer->request.data;
+    ListQ_item_t        *pItem              = a_sigval.sival_ptr;
+    sRequestServer_t    *pRequestServer  = (sRequestServer_t *)pItem->pData;
     sTimerResponse_t   *pTimerResponse  = {0};
 
 
@@ -165,11 +191,10 @@ static void servicetime_funcThread_timerCB(__sigval_t a_sigval)
     {
         snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
                 " _3_ : net_openConnect(%.50s) result=%d %s \n",
-                localservice,
-                result , strerror(result));
+                localservice,result , strerror(result));
         TRACE_ERR(msgbuffer);
 
-        TRACE_DBG1("_31_ result=%d",result);
+       servicetime_removeitemlist(&g_List_clienttimer,pItem);
     }
 
     if( 0 == result )
@@ -193,10 +218,10 @@ static void servicetime_funcThread_timerCB(__sigval_t a_sigval)
                 response.header.datasize,
                 errno,strerror(errno));
 
-        if ( 0 != result)
+        if ( -1 == result)
         {
             snprintf(msgbuffer,APISYSLOG_MSG_SIZE-50,
-                    "error mq_send(%s) result=%d errno=%d %s \n",
+                    "error sendto(%s) result=%d errno=%d %s \n",
                     localservice,result , errno,strerror(errno));
             TRACE_ERR(msgbuffer);
         }
@@ -245,9 +270,9 @@ static void * servicetime_threadFunction_timer(void * a_pArg)
         if( SIGUSR1 == result ) // add client
         {
 
-            tq_lock(&g_List_tempo);
-            pItem = tq_removeHeadList(&g_List_tempo);
-            tq_unlock(&g_List_tempo);
+            tq_lock(&g_List_Register);
+            pItem = tq_removeHeadList(&g_List_Register);
+            tq_unlock(&g_List_Register);
 
             pRequestServer  = (sRequestServer_t*)pItem->pData;
             pTimerRequest   = (sTimerRequest_t*)&pRequestServer->request.data;
@@ -258,15 +283,15 @@ static void * servicetime_threadFunction_timer(void * a_pArg)
             tq_unlock(&g_List_clienttimer);
 
 
+
             // create timer
             sigevent.sigev_notify_function = servicetime_funcThread_timerCB;
             sigevent.sigev_notify = SIGEV_THREAD; // SIGEV_SIGNAL;
             sigevent.sigev_signo = SIGALRM;
-            sigevent.sigev_value.sival_ptr = &timerid;
-            sigevent.sigev_value.sival_ptr = (void*)pRequestServer;
+            //sigevent.sigev_value.sival_int = pRequestServer->timerid;
+            sigevent.sigev_value.sival_ptr = (void*)pItem;
 
-            errno=0;
-            result = timer_create(CLOCK_MONOTONIC, &sigevent, &timerid);
+            result = timer_create(CLOCK_MONOTONIC, &sigevent, &pRequestServer->timerid);
 
             TRACE_DBG2(": _2_ timer_create()=%d %d %s pRequest=%#p",
                     result,errno,strerror(errno),pItem);
@@ -276,7 +301,7 @@ static void * servicetime_threadFunction_timer(void * a_pArg)
             its.it_interval.tv_sec  = its.it_value.tv_sec;
             its.it_interval.tv_nsec = its.it_value.tv_nsec;
 
-            result = timer_settime(timerid, 0, &its, NULL);
+            result = timer_settime(pRequestServer->timerid, 0, &its, NULL);
             TRACE_DBG2(": _3_ timer_create()=%d timeout=%ld.%lld %d %s",
                     result,
                     pTimerRequest->timespesc.tv_sec,
@@ -313,7 +338,7 @@ int main(void)
     sleep(1);
 
     tq_init(&g_List_clienttimer,sizeof(sRequestServer_t));
-    tq_init(&g_List_tempo,sizeof(sRequestServer_t));
+    tq_init(&g_List_Register,sizeof(sRequestServer_t));
 
 
     result = libmsg_srvtimer_srv_register_svc_getdate(SRVTIMER_GETDATE,servicetime_cbfcnt_svc_getdate);

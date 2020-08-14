@@ -94,7 +94,7 @@ int check_signal(const char* a_value)
 
     result = libmsg_srvtimer_cli_timer(SRVTIMER_TIMER,timeout_ts,cli_cbfcnt_signaldate,&dataSvcTimer);
 
-    printf("%s_ : result = %d ",__FUNCTION__,result);
+    printf("%s_ : result = %d \n",__FUNCTION__,result);
 
     getchar();
 

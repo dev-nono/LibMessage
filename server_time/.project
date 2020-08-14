@@ -3,6 +3,9 @@
 	<name>service_time</name>
 	<comment></comment>
 	<projects>
+		<project>apisyslog</project>
+		<project>libmessage</project>
+		<project>utilstools</project>
 	</projects>
 	<buildSpec>
 		<buildCommand>
