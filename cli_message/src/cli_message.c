@@ -20,19 +20,18 @@
 #include <fcntl.h>           /* Pour les constantes O_* */
 #include <libmsg_srvtimer.h>
 #include <sys/stat.h>        /* Pour les constantes des modes */
-#include <mqueue.h>
 
 #include "apisyslog.h"
-#include "utilstools_msgqueue.h"
+#include "utilstools_time.h"
 
 
-
-static int libmsg_cli_cbfcnt_signaldate(sResponse_t *a_pResponse)
+static int cli_cbfcnt_signaldate(sResponse_t *a_pResponse)
 {
 
-    sSignaldateResponse_t *pSignaldateResponse = (sSignaldateResponse_t *)a_pResponse->data;
+    sTimerResponse_t *pSignaldateResponse = (sTimerResponse_t *)a_pResponse->data;
 
-    TRACE_DBG4(" : date=%ld.%09ld \n",
+    printf("%s : date=%ld.%09ld \n",
+            __FUNCTION__,
             pSignaldateResponse->timespesc.tv_sec,
             pSignaldateResponse->timespesc.tv_nsec);
 
@@ -54,7 +53,7 @@ int check_loop( const char* a_value)
     do{
         vDate = 0.0;
 
-        result =  libmsg_srvtimer_cli_getdate(&vDate);
+        result =  libmsg_srvtimer_cli_getdate(SRVTIMER_GETDATE,&vDate);
 
         if( 0 == result )
         {
@@ -85,31 +84,23 @@ int check_signal(const char* a_value)
 {
     int         result  = 0;
     double      timeout = 0.0;
-//    char        buffer[255] = {0};
+    struct timespec timeout_ts = {0};
+
+    sSignal_t dataSvcTimer = {0};
 
     timeout = atof(a_value);
 
+    time_cnv_double_to_ts(timeout,&timeout_ts);
 
-//    result = libmsg_srvtime_cli_signaldate(a_UniqID,
-//            timeout,
-//            &libmsg_cli_cbfcnt_signaldate);
+    result = libmsg_srvtimer_cli_timer(SRVTIMER_TIMER,timeout_ts,cli_cbfcnt_signaldate,&dataSvcTimer);
 
-    //    if( 0 == result )
-    //    {
-    //        result = libmsg_srvtime_cli_wait();
-    //    }
-    do{
+    printf("%s_ : result = %d ",__FUNCTION__,result);
 
-//        memset(buffer,0,255);
-//        fgets(buffer,255,stdin);
+    getchar();
 
-        result = libmsg_srvtimer_cli_timer(timeout,libmsg_cli_cbfcnt_signaldate);
-        printf("%s_ : result = %d ",__FUNCTION__,result);
+    close(dataSvcTimer.socket);
+    unlink(dataSvcTimer.filenameClient);
 
-        getchar();
-        // if( buffer[])
-
-    }while(1);
 
     return result;
 }
@@ -127,9 +118,6 @@ int main(int argc, char* argv[])
     apisyslog_init("");
 
     TRACE_DBG1("main_")
-
-    //    result = libmessage_getdate("cli_message",SERVER_TIME_ID_GETDATE,&vDate);
-    //    printf("\ncli_message : result = %d date = %f \n",result,vDate);
 
     if(argc > 2)
     {
