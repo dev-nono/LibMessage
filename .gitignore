@@ -1,1 +1,6 @@
 core
+/Debug/
+/Release/
+/Dfifo/
+/Dmq/
+/Dunix/
