@@ -235,6 +235,9 @@
 		<configuration configurationName="Dunix">
 			<resource resourceType="PROJECT" workspacePath="/libmessage"/>
 		</configuration>
+		<configuration configurationName="Dmq">
+			<resource resourceType="PROJECT" workspacePath="/libmessage"/>
+		</configuration>
 		<configuration configurationName="Debug">
 			<resource resourceType="PROJECT" workspacePath="/libmessage"/>
 		</configuration>
